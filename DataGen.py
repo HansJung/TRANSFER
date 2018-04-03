@@ -15,7 +15,8 @@ class DataGen(object):
 
     # Seed fix
     # Some good seed are 1234, 12345, 123456
-    np.random.seed(89502)
+    # np.random.seed(180402)
+    np.random.seed(1234)
     def __init__(self,D,N,Ns,Mode):
         '''
         Initializing the class

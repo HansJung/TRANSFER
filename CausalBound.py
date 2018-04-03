@@ -88,9 +88,8 @@ class CausalBound(object):
 
 
 
-    def Solve_Optimization(self, C, cls_size):
+    def Solve_Optimization(self, C, cls_size, iter_opt):
         rounding_digit = 12
-        iter_opt = 100
 
         f_means = np.round(self.dpobs.means_, rounding_digit)
         f_stds = np.ndarray.flatten(np.round(np.sqrt(self.dpobs.covariances_), rounding_digit))
@@ -110,34 +109,44 @@ class CausalBound(object):
 
         x0 = np.random.rand(cls_size)
 
+        print(0, " th iteration")
         upper = self.Bound_Optimization(C, x0, cls_size, f_means, f_stds, f_weights, g_stds, upper_weight, opt_mode='max')
-        # upper_update = copy.copy(prev_weights)
-
         lower = self.Bound_Optimization(C, x0, cls_size, f_means, f_stds, f_weights, g_stds, lower_weight, opt_mode='min')
-        # lower_update = copy.copy(prev_weights)
 
         for iter_idx in range(iter_opt):
             ### Update
+            prev_upper_weight = upper_weight
             print("-"*50)
-            print(iter_idx+1," th optimization")
+            print(iter_idx+1," th iteration")
             upper_rank = upper.x.argsort().argsort()
             upper_update += upper_rank
             upper_weight = np.mean(np.random.dirichlet(upper_update, 100),axis=0)
+            upper_update_quantity = np.sum(np.abs(upper_weight - prev_upper_weight))
             print('upper_weight', upper_weight)
-            upper = self.Bound_Optimization(C, upper.x, cls_size, f_means, f_stds, f_weights, g_stds, upper_weight, opt_mode='max')
+            print('upper update', upper_update_quantity)
+            upper_starting = upper.x
+            upper = self.Bound_Optimization(C, upper_starting, cls_size, f_means, f_stds, f_weights, g_stds, upper_weight, opt_mode='max')
 
+            prev_lower_weight = lower_weight
             lower_rank = lower.x.argsort().argsort()
             lower_rank = max(lower_rank) - lower_rank
             lower_update += lower_rank
             lower_weight = np.mean(np.random.dirichlet(lower_update, 100),axis=0)
+            lower_update_quantity = np.sum(np.abs(lower_weight - prev_lower_weight))
             print('lower_weight', lower_weight)
-            lower = self.Bound_Optimization(C, lower.x, cls_size, f_means, f_stds, f_weights, g_stds, lower_weight, opt_mode='min')
+            print('lower update', lower_update_quantity)
+            lower_starting = lower.x
+            lower = self.Bound_Optimization(C, lower_starting, cls_size, f_means, f_stds, f_weights, g_stds, lower_weight, opt_mode='min')
             print("-"*50)
+
+            if max(upper_update_quantity, lower_update_quantity) < 0.01:
+                print('Sufficient update!')
+                break
 
         LB = np.sum(lower.x * lower_weight)
         UB = np.sum(upper.x * upper_weight)
 
-        return [LB, UB]
+        return [LB, UB, lower, upper]
 
 
     def Bound_Optimization(self, C, x0, cls_size, f_means, f_stds, f_weights, g_stds, g_weights, opt_mode):

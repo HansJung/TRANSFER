@@ -5,7 +5,7 @@ class UCB(object):
     def __init__(self, bound_list, Intv,K):
         self.K = K
         self.bdd_list = bound_list
-        self.T = 500  # number of rounds
+        self.T = 2000  # number of rounds
         self.arm_list = list(range(len(bound_list)))
 
         self.LB_arm = []
@@ -97,14 +97,20 @@ class UCB(object):
                 cum_regret_list.append(cum_regret)
 
             # Run!
+            UCB_list = []
+            X_hat_list = []
             for t in range(K*len(arm_list), self.T):
                 UB_list = []
+                X_hat_arm = []
                 for a in arm_list:
                     # standard UCB
                     x_hat = np.mean(Reward_arm[a])
-                    upper_a = np.sqrt(4 * np.log(t) / 2 * Na_T[a])
+                    X_hat_arm.append(x_hat)
+                    upper_a = np.sqrt( (4 * np.log(t)) / (2 * Na_T[a]))
                     UB_a = x_hat + upper_a
                     UB_list.append(UB_a)
+                UCB_list.append(UB_list)
+                X_hat_list.append(X_hat_arm)
 
                 at = UB_list.index(max(UB_list))
                 Arm.append(at)
@@ -119,7 +125,7 @@ class UCB(object):
 
                 prob_opt_list.append(prob_opt)
                 cum_regret_list.append(cum_regret)
-            return prob_opt_list, cum_regret_list
+            return prob_opt_list, cum_regret_list, UCB_list, Arm, X_hat_list, Na_T
 
     def B_UCB(self, K):
         arm_list, LB_arm, UB_arm, u_list = self.Arm_Cut()
@@ -167,15 +173,25 @@ class UCB(object):
                 cum_regret_list.append(cum_regret)
 
             # Run!
+            UCB_list = []
+            UCB_hat_list = []
+            X_hat_list = []
             for t in range(K * len(arm_list), self.T):
+                X_hat_arm = []
                 UB_list = []
+                UCB_hat = []
                 for a in arm_list:
                     # standard UCB
                     x_hat = np.mean(Reward_arm[a])
-                    upper_a = np.sqrt(4 * np.log(t) / 2 * Na_T[a])
+                    X_hat_arm.append(x_hat)
+                    upper_a = np.sqrt((4 * np.log(t)) / (2 * Na_T[a]))
                     UCB_a = x_hat + upper_a
+                    UCB_hat.append(UCB_a)
                     UB_a = min(UCB_a, UB_arm[a])
                     UB_list.append(UB_a)
+                UCB_list.append(UB_list)
+                UCB_hat_list.append(UCB_hat)
+                X_hat_list.append(X_hat_arm)
 
                 at = UB_list.index(max(UB_list))
                 Arm.append(at)
@@ -190,11 +206,11 @@ class UCB(object):
 
                 prob_opt_list.append(prob_opt)
                 cum_regret_list.append(cum_regret)
-            return prob_opt_list, cum_regret_list
+            return prob_opt_list, cum_regret_list, UCB_list, UCB_hat_list, Arm, X_hat_list, Na_T
 
     def Bandit_Run(self):
-        prob_opt, cum_regret = self.UCB(self.arm_list,self.u_list,self.K)
-        prob_opt_B, cum_regret_B = self.B_UCB(self.K)
-        return [prob_opt, cum_regret, prob_opt_B, cum_regret_B]
+        prob_opt, cum_regret, UCB_list, Arm, X_hat_list,  Na_T = self.UCB(self.arm_list,self.u_list,self.K)
+        prob_opt_B, cum_regret_B, UCB_list_B, UCB_hat_list_B, Arm_B,X_hat_list_B, Na_T_B = self.B_UCB(self.K)
+        return [[prob_opt, cum_regret, UCB_list, Arm,X_hat_list, Na_T],[prob_opt_B, cum_regret_B, UCB_list_B, UCB_hat_list_B, Arm_B, X_hat_list_B, Na_T_B]]
 
 
