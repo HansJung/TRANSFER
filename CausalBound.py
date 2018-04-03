@@ -107,7 +107,8 @@ class CausalBound(object):
         lower_update = np.array([1]*cls_size)
         lower_weight = np.mean(np.random.dirichlet(lower_update,100),axis=0)
 
-        x0 = np.random.rand(cls_size)
+        # x0 = np.random.rand(cls_size)
+        x0 = f_means
 
         print(0, " th iteration")
         upper = self.Bound_Optimization(C, x0, cls_size, f_means, f_stds, f_weights, g_stds, upper_weight, opt_mode='max')
@@ -124,7 +125,7 @@ class CausalBound(object):
             upper_update_quantity = np.sum(np.abs(upper_weight - prev_upper_weight))
             print('upper_weight', upper_weight)
             print('upper update', upper_update_quantity)
-            upper_starting = upper.x
+            upper_starting = upper.x + (1/(10*(1+iter_idx))) * np.random.rand(cls_size)
             upper = self.Bound_Optimization(C, upper_starting, cls_size, f_means, f_stds, f_weights, g_stds, upper_weight, opt_mode='max')
 
             prev_lower_weight = lower_weight
@@ -135,7 +136,7 @@ class CausalBound(object):
             lower_update_quantity = np.sum(np.abs(lower_weight - prev_lower_weight))
             print('lower_weight', lower_weight)
             print('lower update', lower_update_quantity)
-            lower_starting = lower.x
+            lower_starting = lower.x+ (1/(10*(1+iter_idx))) * np.random.rand(cls_size)
             lower = self.Bound_Optimization(C, lower_starting, cls_size, f_means, f_stds, f_weights, g_stds, lower_weight, opt_mode='min')
             print("-"*50)
 

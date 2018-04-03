@@ -5,7 +5,7 @@ class UCB(object):
     def __init__(self, bound_list, Intv,K):
         self.K = K
         self.bdd_list = bound_list
-        self.T = 2000  # number of rounds
+        self.T = 8000  # number of rounds
         self.arm_list = list(range(len(bound_list)))
 
         self.LB_arm = []
@@ -106,7 +106,7 @@ class UCB(object):
                     # standard UCB
                     x_hat = np.mean(Reward_arm[a])
                     X_hat_arm.append(x_hat)
-                    upper_a = np.sqrt( (4 * np.log(t)) / (2 * Na_T[a]))
+                    upper_a = np.sqrt( (3 * np.log(t)) / (2 * Na_T[a]))
                     UB_a = x_hat + upper_a
                     UB_list.append(UB_a)
                 UCB_list.append(UB_list)
@@ -184,7 +184,7 @@ class UCB(object):
                     # standard UCB
                     x_hat = np.mean(Reward_arm[a])
                     X_hat_arm.append(x_hat)
-                    upper_a = np.sqrt((4 * np.log(t)) / (2 * Na_T[a]))
+                    upper_a = np.sqrt((3 * np.log(t)) / (2 * Na_T[a]))
                     UCB_a = x_hat + upper_a
                     UCB_hat.append(UCB_a)
                     UB_a = min(UCB_a, UB_arm[a])

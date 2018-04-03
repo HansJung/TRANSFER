@@ -1,12 +1,12 @@
-from Experiment.DataGen import DataGen
-from Experiment.DPFit import DPFit
-from Experiment.CausalBound import CausalBound
-from Experiment.UCB import UCB
+from DataGen import DataGen
+from DPFit import DPFit
+from CausalBound import CausalBound
+from UCB import UCB
 import numpy as np
 import matplotlib.pyplot as plt
 
 ''' From DataGen '''
-D = 200
+D = 100
 N = 20000
 Ns = 20
 Mode = 'crazy'
@@ -24,15 +24,11 @@ plt.figure('Observation')
 Obs[Obs['X']==0]['Y'].plot(kind='density')
 Obs[Obs['X']==1]['Y'].plot(kind='density')
 
-print('')
-print('Observational mean')
-print('X=0',np.mean(Obs[Obs['X']==0]['Y']))
-print('X=1',np.mean(Obs[Obs['X']==1]['Y']))
 
 # plt.figure()
 
 ''' From DPFit '''
-init_compo = 8
+init_compo = 25
 iter_opt = 1000
 bound_list = []
 bounded_models = []
@@ -55,6 +51,12 @@ for x in [0,1]:
     LB,UB,lower,upper = CB.Solve_Optimization(C,init_compo, iter_opt)
     bound_list.append([LB,UB])
     bounded_models.append([lower,upper])
+
+print('')
+print('Observational mean')
+print('X=0',np.mean(Obs[Obs['X']==0]['Y']))
+print('X=1',np.mean(Obs[Obs['X']==1]['Y']))
+print('')
 
 print(bound_list)
 print(np.mean(Intv[Intv['X']==0]['Y']), np.mean(Intv[Intv['X']==1]['Y']))
