@@ -28,8 +28,8 @@ Obs[Obs['X']==1]['Y'].plot(kind='density')
 # plt.figure()
 
 ''' From DPFit '''
-init_compo = 25
-iter_opt = 1000
+init_compo = 10
+iter_opt = 3
 bound_list = []
 bounded_models = []
 
