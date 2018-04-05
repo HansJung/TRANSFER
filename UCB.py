@@ -5,7 +5,7 @@ class UCB(object):
     def __init__(self, bound_list, Intv,K):
         self.K = K
         self.bdd_list = bound_list
-        self.T = 2500  # number of rounds
+        self.T = 10000  # number of rounds
         self.arm_list = list(range(len(bound_list)))
 
         self.LB_arm = []

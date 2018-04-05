@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 ''' From DataGen '''
 D = 100
-N = 5000
+N = 20000
 Ns = 20
 Mode = 'easy'
 
@@ -51,16 +51,18 @@ for x in [0,1]:
     CB = CausalBound(dpobs,C)
 
     # Arbitrary density
-    # LB,UB,lower,upper = CB.Solve_Optimization(C,init_compo, iter_opt)
-    # bound_list.append([LB,UB])
-    # bounded_models.append([lower,upper])
+    if Mode == 'crazy':
+        LB,UB,lower,upper = CB.Solve_Optimization(C,init_compo, iter_opt)
+        bound_list.append([LB,UB])
+        bounded_models.append([lower,upper])
 
     # Easy density
-    f_std = np.std(Yintv_x)
-    f_mean = np.mean(Yintv_x)
-    g_std = copy.copy(f_std)
-    LB,UB = CB.Easy_bound(f_mean,f_std,g_std, C)
-    bound_list.append([LB,UB])
+    if Mode == 'easy':
+        f_std = np.std(Yintv_x)
+        f_mean = np.mean(Yintv_x)
+        g_std = copy.copy(f_std)
+        LB,UB = CB.Easy_bound(f_mean,f_std,g_std, C)
+        bound_list.append([LB,UB])
 
 print('')
 print('Observational mean')
