@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 ''' From DataGen '''
 D = 100
-N = 20000
+N = 5000
 Ns = 20
 Mode = 'easy'
 
@@ -85,6 +85,49 @@ print(prob_opt_B)
 
 print(cum_regret)
 print(cum_regret_B)
+
+if np.mean(Intv[Intv['X']==0]['Y']) > np.mean(Intv[Intv['X']==1]['Y']):
+    opt_arm = 0
+else:
+    opt_arm = 1
+
+color_box = ['r','b']
+choice_box = []
+
+cur_num = -1
+for idx in range(len(UCB_list_B)):
+    prev_num = cur_num
+    choice_arm = Arm_B
+    ucb_cb = max(UCB_list_B[idx])
+    ucb_hat_chosen = min(UCB_hat_list_B[idx])
+
+    if max(UCB_list_B[idx]) in UCB_hat_list_B[idx]:
+        # print('UCB')
+        choice_box.append(1)
+        cur_num = 1
+
+    else:
+        # print('CB')
+        choice_box.append(0)
+        cur_num = 0
+
+    if idx > 0 and prev_num != cur_num:
+        rem_num = idx
+        rem_arm = prev_num
+
+
+color_list = [color_box[idx] for idx in choice_box]
+plt.figure()
+plt.title('Illustration: which bounds affect choice of arms')
+phase1 = plt.scatter(range(rem_num),[1]*rem_num,c=color_list[:rem_num])
+phase2 = plt.scatter(range(rem_num, len(choice_box)),[1]*(len(choice_box) - rem_num),c=color_list[rem_num:])
+plt.yticks([])
+if rem_arm == 0:
+    plt.legend([phase1, phase2],['IT-bound','UCB'])
+else:
+    plt.legend([phase1, phase2], ['IT-bound', 'CB'])
+
+
 
 plt.figure()
 plt.title('Cum regret')

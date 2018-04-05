@@ -5,7 +5,7 @@ class UCB(object):
     def __init__(self, bound_list, Intv,K):
         self.K = K
         self.bdd_list = bound_list
-        self.T = 10000  # number of rounds
+        self.T = 2500  # number of rounds
         self.arm_list = list(range(len(bound_list)))
 
         self.LB_arm = []
@@ -176,6 +176,7 @@ class UCB(object):
             UCB_list = []
             UCB_hat_list = []
             X_hat_list = []
+            what_choose = []
             for t in range(K * len(arm_list), self.T):
                 X_hat_arm = []
                 UB_list = []

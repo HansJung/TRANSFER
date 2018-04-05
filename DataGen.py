@@ -16,8 +16,8 @@ class DataGen(object):
     # Seed fix
     # Some good seed are 1234, 12345, 123456
     # np.random.seed(180405)
-    np.random.seed(160702)
-    # np.random.seed(160728)
+    # np.random.seed(160702)
+    np.random.seed(160728)
     def __init__(self,D,N,Ns,Mode):
         '''
         Initializing the class
@@ -127,9 +127,9 @@ class DataGen(object):
                                             [1] * int(self.num_obs / 2)))
 
     def gen_Y(self):
-        coef_zy = np.reshape(-1 * np.random.rand(self.dim), (self.dim, 1))
+        coef_zy = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
         coef_u2y = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
-        coef_u3y = np.reshape(-1 * np.random.rand(self.dim), (self.dim, 1))
+        coef_u3y = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
 
         U2 = np.matrix(self.U2)
         U3 = np.matrix(self.U3)
@@ -151,8 +151,8 @@ class DataGen(object):
             # Y_intv = 100*(Y_intv - np.mean(Y)) / np.var(Y)
             # Y_intv += (2 * np.array(X_intv.T) - 1)
 
-            Y =  8*U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy - 500 * (2*np.array(X_obs.T)-1)
-            Y_intv = 8* U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy - 500* (2*np.array(X_intv.T)-1)
+            Y =  5*U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy + 600 * (2*np.array(X_obs.T)-1)
+            Y_intv = 5* U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy + 600* (2*np.array(X_intv.T)-1)
             print(Y)
 
         elif self.Mode == 'crazy':
