@@ -15,9 +15,9 @@ class DataGen(object):
 
     # Seed fix
     # Some good seed are 1234, 12345, 123456
-    np.random.seed(180403)
+    # np.random.seed(180403)
     # np.random.seed(160702)
-    # np.random.seed(160728)
+    np.random.seed(160728)
     def __init__(self,D,N,Ns,Mode):
         '''
         Initializing the class
@@ -151,15 +151,15 @@ class DataGen(object):
             # Y_intv = 100*(Y_intv - np.mean(Y)) / np.var(Y)
             # Y_intv += (2 * np.array(X_intv.T) - 1)
 
-            Y =  1*U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy + 1500 * (2*np.array(X_obs.T)-1)
-            Y_intv = 1* U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy + 1500* (2*np.array(X_intv.T)-1)
+            Y =  1*U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy + 800 * (2*np.array(X_obs.T)-1)
+            Y_intv = 1* U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy + 800* (2*np.array(X_intv.T)-1)
             print(Y)
 
         elif self.Mode == 'crazy':
             Y = 1*np.array(np.sin(U2 * coef_u2y)) + \
                 np.array(-2 * np.array(1 * np.power(U3 * coef_u3y, 1)) +
                          (2*np.array(X_obs.T)-1)) + \
-                0.5*np.array(np.power(np.abs(Z * coef_zy), 0.5)) * np.array(2 * np.array(X_obs.T) - 1)
+                0.5*np.array(np.power(np.abs(Z * coef_zy), 0.5)) + np.array(2 * np.array(X_obs.T) - 1)
 
             print(Y)
 
@@ -169,7 +169,7 @@ class DataGen(object):
             Y_intv = 1*np.array(np.sin(U2 * coef_u2y)) + \
                      np.array(-2 * np.array(1* np.power(U3 * coef_u3y,1)) +
                               (2*np.array(X_intv.T)-1)) + \
-                     0.5*np.array(np.power(np.abs(Z * coef_zy),0.5) )  * np.array(2 * np.array(X_intv.T) - 1)
+                     0.5*np.array(np.power(np.abs(Z * coef_zy),0.5) )  + np.array(2 * np.array(X_intv.T) - 1)
 
             # Y_intv = 100 * ((Y_intv - np.mean(Y, axis=0)) / np.var(Y))
 

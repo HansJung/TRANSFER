@@ -23,6 +23,31 @@ class CausalBound(object):
                (f_std ** 2 + (f_mean - g_mean) ** 2) / (2 * g_std ** 2) - \
                0.5
 
+    def Easy_bound(self, f_mean, f_std, g_std, C):
+        def M(f_std, g_std, C):
+            return 2*(g_std**2)*(C + 0.5 - np.log(g_std) + np.log(f_std) - ((f_std ** 2)/(2*(g_std ** 2))))
+
+        UB = f_mean + np.sqrt(M(f_std, g_std, C))
+        LB = f_mean - np.sqrt(M(f_std, g_std, C))
+        return [LB,UB]
+
+    def Easy_opt(self, C, f_std, g_std):
+        # obs_covs = np.reshape(self.dpobs.covariances_, (1, len(self.dpobs.covariances_)))[0]
+        # obs_stds = np.sqrt(obs_covs)
+        # obs_std = np.sum(self.dpobs.weights_ * obs_covs)
+        # f_std = copy.copy(obs_std)
+        # g_std = copy.copy(obs_std)
+
+        f_mean = np.sum((self.dpobs.weights_ * self.dpobs.means_.T)[0])
+        return self.Easy_bound(f_mean,f_std,g_std, C)
+
+
+
+
+
+
+
+
     def KL_GMM(self, f_weights, g_weights, f_means, g_means, f_stds, g_stds):
         sum_result = 0
         for k in range(len(f_weights)):
@@ -85,8 +110,6 @@ class CausalBound(object):
                 elif mode == 'max':
                     sum_derive[j] += - (pi_i * exp_Aij / sum_exp_Aijdot * ((g_mean_j - f_mean_i) / (g_stds_j ** 2)))
         return sum_derive
-
-
 
     def Solve_Optimization(self, C, cls_size, iter_opt):
         rounding_digit = 12

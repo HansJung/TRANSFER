@@ -2,14 +2,15 @@ from DataGen import DataGen
 from DPFit import DPFit
 from CausalBound import CausalBound
 from UCB import UCB
+import copy
 import numpy as np
 import matplotlib.pyplot as plt
 
 ''' From DataGen '''
 D = 100
-N = 20000
+N = 5000
 Ns = 20
-Mode = 'crazy'
+Mode = 'easy'
 
 datagen = DataGen(D,N,Ns,Mode)
 datagen.data_gen()
@@ -29,7 +30,7 @@ Obs[Obs['X']==1]['Y'].plot(kind='density')
 
 ''' From DPFit '''
 init_compo = 10
-iter_opt = 3
+iter_opt = 1000
 bound_list = []
 bounded_models = []
 
@@ -48,9 +49,18 @@ for x in [0,1]:
     px = len(Obs[Obs['X'] == x])/ N
     C =  -np.log(px)
     CB = CausalBound(dpobs,C)
-    LB,UB,lower,upper = CB.Solve_Optimization(C,init_compo, iter_opt)
+
+    # Arbitrary density
+    # LB,UB,lower,upper = CB.Solve_Optimization(C,init_compo, iter_opt)
+    # bound_list.append([LB,UB])
+    # bounded_models.append([lower,upper])
+
+    # Easy density
+    f_std = np.std(Yintv_x)
+    f_mean = np.mean(Yintv_x)
+    g_std = copy.copy(f_std)
+    LB,UB = CB.Easy_bound(f_mean,f_std,g_std, C)
     bound_list.append([LB,UB])
-    bounded_models.append([lower,upper])
 
 print('')
 print('Observational mean')
