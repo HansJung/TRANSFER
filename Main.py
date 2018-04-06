@@ -8,11 +8,14 @@ import matplotlib.pyplot as plt
 
 ''' From DataGen '''
 D = 100
-N = 5000
+N = 20000
 Ns = 20
-Mode = 'easy'
+seed_num = np.random.randint(10000000)
+# 8030328 is good seed 
+Mode = 'crazy'
 
-datagen = DataGen(D,N,Ns,Mode)
+print('Seed_num', seed_num)
+datagen = DataGen(D,N,Ns,Mode, seed_num)
 datagen.data_gen()
 Obs = datagen.Obs
 Intv = datagen.Intv
@@ -29,21 +32,27 @@ Obs[Obs['X']==1]['Y'].plot(kind='density')
 # plt.figure()
 
 ''' From DPFit '''
-init_compo = 10
+
 iter_opt = 1000
 bound_list = []
 bounded_models = []
 
 for x in [0,1]:
+    init_compo = 200
     Yobs_x = Obs[Obs['X']==x]['Y']
     Yintv_x = Intv[Intv['X']==x]['Y']
 
-    DPFit_obs = DPFit(Yobs_x,init_compo)
     DPFit_intv = DPFit(Yintv_x,init_compo)
-    DPFit_obs.Conduct()
-    dpobs = DPFit_obs.dpgmm
     DPFit_intv.Conduct()
     dpintv = DPFit_intv.dpgmm
+
+    DPFit_obs = DPFit(Yobs_x, init_compo)
+    DPFit_obs.Conduct()
+    dpobs = DPFit_obs.dpgmm
+    init_compo = sum(1 for x in dpobs.weights_ if x > 1e-3)
+    DPFit_obs = DPFit(Yobs_x, init_compo)
+    DPFit_obs.Conduct()
+    dpobs = DPFit_obs.dpgmm
 
     ''' From Causal Bound '''
     px = len(Obs[Obs['X'] == x])/ N
@@ -52,7 +61,7 @@ for x in [0,1]:
 
     # Arbitrary density
     if Mode == 'crazy':
-        LB,UB,lower,upper = CB.Solve_Optimization(C,init_compo, iter_opt)
+        LB,UB,lower,upper = CB.Solve_Optimization(C, init_compo, iter_opt)
         bound_list.append([LB,UB])
         bounded_models.append([lower,upper])
 

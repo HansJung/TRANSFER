@@ -123,47 +123,79 @@ class CausalBound(object):
         # upper_update = np.array([1]*cls_size) + self.dpobs.weights_.argsort().argsort()
         # upper_weight = np.random.dirichlet(upper_update)
         upper_update = np.array([1]*cls_size)
-        upper_weight = np.mean(np.random.dirichlet(upper_update,100),axis=0)
+        upper_weight = np.random.dirichlet(upper_update,1)
 
         # lower_update = np.array([1] * cls_size) + (max(self.dpobs.weights_.argsort().argsort()) - self.dpobs.weights_.argsort().argsort())
         # lower_weight = np.random.dirichlet(lower_update)
         lower_update = np.array([1]*cls_size)
-        lower_weight = np.mean(np.random.dirichlet(lower_update,100),axis=0)
+        lower_weight = np.random.dirichlet(lower_update,1)
 
-        # x0 = np.random.rand(cls_size)
-        x0 = f_means
+        x0 = np.random.rand(cls_size)
 
         print(0, " th iteration")
         upper = self.Bound_Optimization(C, x0, cls_size, f_means, f_stds, f_weights, g_stds, upper_weight, opt_mode='max')
-        lower = self.Bound_Optimization(C, x0, cls_size, f_means, f_stds, f_weights, g_stds, lower_weight, opt_mode='min')
+        prev_upper_x = copy.copy(upper.x)
 
+        lower = self.Bound_Optimization(C, x0, cls_size, f_means, f_stds, f_weights, g_stds, lower_weight, opt_mode='min')
+        prev_lower_x = copy.copy(lower.x)
+
+        # Upper
         for iter_idx in range(iter_opt):
             ### Update
             prev_upper_weight = upper_weight
-            print("-"*50)
-            print(iter_idx+1," th iteration")
+            print("-"*100)
+            print(iter_idx," th iteration (Upper)")
             upper_rank = upper.x.argsort().argsort()
-            upper_update += upper_rank
-            upper_weight = np.mean(np.random.dirichlet(upper_update, 100),axis=0)
+            upper_update += (upper_rank ** 2)
+            upper_weight = np.random.dirichlet(upper_update,1)
             upper_update_quantity = np.sum(np.abs(upper_weight - prev_upper_weight))
-            print('upper_weight', upper_weight)
-            print('upper update', upper_update_quantity)
-            upper_starting = upper.x + (1/(10*(1+iter_idx))) * np.random.rand(cls_size)
-            upper = self.Bound_Optimization(C, upper_starting, cls_size, f_means, f_stds, f_weights, g_stds, upper_weight, opt_mode='max')
 
+            print('upper_weight', np.round(upper_weight,3))
+            print('prev_upper_x',prev_upper_x)
+            print('upper_x', upper.x)
+            print('upper_mean', np.round(np.sum(upper.x * upper_weight),3) )
+            print('upper_update',upper_update)
+            print('upper update', upper_update_quantity)
+
+            # upper_starting = upper.x + (1/(cls_size*(1+iter_idx))) * np.random.rand(cls_size)
+            upper_starting = copy.copy(prev_upper_x)
+            upper = self.Bound_Optimization(C, upper_starting, cls_size, f_means, f_stds, f_weights, g_stds, upper_weight, opt_mode='max')
+            curr_upper_x = copy.copy(upper.x)
+            upper_x_update = np.sum(np.abs(curr_upper_x - prev_upper_x))
+            print('upper_x_update', upper_x_update)
+
+            if upper_update_quantity < 0.005 or np.sum(upper.x) == cls_size or upper_x_update < 0.001 * cls_size:
+                print('Sufficient update!')
+                break
+
+        print("-" * 100)
+        print("-" * 100)
+        for iter_idx in range(iter_opt):
+            ### Update
+            print("-" * 100)
+            print(iter_idx, " th iteration (Lower)")
             prev_lower_weight = lower_weight
             lower_rank = lower.x.argsort().argsort()
             lower_rank = max(lower_rank) - lower_rank
-            lower_update += lower_rank
-            lower_weight = np.mean(np.random.dirichlet(lower_update, 100),axis=0)
+            lower_update += (lower_rank ** 2)
+            lower_weight = np.random.dirichlet(lower_update, 1)
             lower_update_quantity = np.sum(np.abs(lower_weight - prev_lower_weight))
-            print('lower_weight', lower_weight)
-            print('lower update', lower_update_quantity)
-            lower_starting = lower.x+ (1/(10*(1+iter_idx))) * np.random.rand(cls_size)
-            lower = self.Bound_Optimization(C, lower_starting, cls_size, f_means, f_stds, f_weights, g_stds, lower_weight, opt_mode='min')
-            print("-"*50)
 
-            if max(upper_update_quantity, lower_update_quantity) < 0.01:
+            print('lower_weight', np.round(lower_weight,3))
+            print('prev_lower_x', prev_lower_x)
+            print('lower_x', lower.x)
+            print('lower_mean', np.round(np.sum(lower.x * lower_weight),3))
+            print('lower_update', lower_update)
+            print('lower update', lower_update_quantity)
+
+            # lower_starting = lower.x+ (1/(cls_size*(1+iter_idx))) * np.random.rand(cls_size)
+            lower_starting = copy.copy(prev_lower_x)
+            lower = self.Bound_Optimization(C, lower_starting, cls_size, f_means, f_stds, f_weights, g_stds, lower_weight, opt_mode='min')
+            curr_lower_x = copy.copy(lower.x)
+            lower_x_update = np.sum(np.abs(curr_lower_x - prev_lower_x))
+            print('lower_x_update', lower_x_update)
+
+            if lower_update_quantity < 0.005 or np.sum(lower.x) == 0 or lower_x_update < 0.005:
                 print('Sufficient update!')
                 break
 
@@ -191,14 +223,14 @@ class CausalBound(object):
         if opt_mode == 'max':
             fun = max_fun
             jac_derive = lambda mu_do: self.deriv_KL_GMM(f_weights, g_weights, f_means, mu_do, f_stds, g_stds,mode='max')
-            solution = minimize(fun, x0=x0, constraints=cons, jac=jac_derive, method='TNC', bounds=bdds, tol=1e-8,
+            solution = minimize(fun, x0=x0, constraints=cons, jac=jac_derive, method='TNC', bounds=bdds, tol=1e-12,
                              options={'maxiter': max_iter, 'disp': True})
 
         elif opt_mode == 'min':
             fun = min_fun
             jac_derive = lambda mu_do: self.deriv_KL_GMM(f_weights, g_weights, f_means, mu_do, f_stds, g_stds,
                                                          mode='min')
-            solution = minimize(fun, x0=x0, constraints=cons, jac=jac_derive, method='TNC', bounds=bdds, tol=1e-8,
+            solution = minimize(fun, x0=x0, constraints=cons, jac=jac_derive, method='TNC', bounds=bdds, tol=1e-12,
                                 options={'maxiter': max_iter, 'disp': True})
 
         return solution
