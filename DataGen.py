@@ -153,25 +153,25 @@ class DataGen(object):
             # Y_intv = 100*(Y_intv - np.mean(Y)) / np.var(Y)
             # Y_intv += (2 * np.array(X_intv.T) - 1)
 
-            Y =  5*U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy + 600 * (2*np.array(X_obs.T)-1)
-            Y_intv = 5* U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy + 600* (2*np.array(X_intv.T)-1)
+            Y =  5*U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy + 1000 * (2*np.array(X_obs.T)-1)
+            Y_intv = 5* U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy + 1000* (2*np.array(X_intv.T)-1)
             print(Y)
 
         elif self.Mode == 'crazy':
-            Y = 3*np.array(np.sin(U2 * coef_u2y)) + \
-                np.array(-2 * np.array(1 * np.power(U3 * coef_u3y, 1)) +
+            Y = 10*np.array(np.sin(U2 * coef_u2y)) + \
+                np.array(-5 * np.array(1 * np.power(U3 * coef_u3y, 1)) * 10*
                          (2*np.array(X_obs.T)-1)) + \
-                0.5*np.array(np.power(np.abs(Z * coef_zy), 0.5)) + np.array(2 * np.array(X_obs.T) - 1)
+                1*np.array(np.power(np.abs(Z * coef_zy), 0.5)) * 1*np.array(2 * np.array(X_obs.T) - 1)
 
             print(Y)
 
             #
             # # Y = 100 * ((Y - np.mean(Y, axis=0)) / np.var(Y))
             #
-            Y_intv = 3*np.array(np.sin(U2 * coef_u2y)) + \
-                     np.array(-2 * np.array(1* np.power(U3 * coef_u3y,1)) +
+            Y_intv = 10*np.array(np.sin(U2 * coef_u2y)) + \
+                     np.array(-5 * np.array(1* np.power(U3 * coef_u3y,1)) * 10*
                               (2*np.array(X_intv.T)-1)) + \
-                     0.5*np.array(np.power(np.abs(Z * coef_zy),0.5) )  + np.array(2 * np.array(X_intv.T) - 1)
+                     1*np.array(np.power(np.abs(Z * coef_zy),0.5) ) * 1*np.array(2 * np.array(X_intv.T) - 1)
 
             # Y_intv = 100 * ((Y_intv - np.mean(Y, axis=0)) / np.var(Y))
 

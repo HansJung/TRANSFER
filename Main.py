@@ -8,11 +8,12 @@ import matplotlib.pyplot as plt
 
 ''' From DataGen '''
 D = 100
-N = 20000
+N = 50000
 Ns = 20
 seed_num = np.random.randint(10000000)
-# 8030328 is good seed 
-Mode = 'crazy'
+# seed_num = 7069723
+# 8030328 is good seed
+Mode = 'easy'
 
 print('Seed_num', seed_num)
 datagen = DataGen(D,N,Ns,Mode, seed_num)
@@ -38,7 +39,7 @@ bound_list = []
 bounded_models = []
 
 for x in [0,1]:
-    init_compo = 200
+    init_compo = 500
     Yobs_x = Obs[Obs['X']==x]['Y']
     Yintv_x = Intv[Intv['X']==x]['Y']
 
@@ -49,7 +50,7 @@ for x in [0,1]:
     DPFit_obs = DPFit(Yobs_x, init_compo)
     DPFit_obs.Conduct()
     dpobs = DPFit_obs.dpgmm
-    init_compo = sum(1 for x in dpobs.weights_ if x > 1e-3)
+    init_compo = sum(1 for x in dpobs.weights_ if x > 1e-4)
     DPFit_obs = DPFit(Yobs_x, init_compo)
     DPFit_obs.Conduct()
     dpobs = DPFit_obs.dpgmm
@@ -59,19 +60,23 @@ for x in [0,1]:
     C =  -np.log(px)
     CB = CausalBound(dpobs,C)
 
-    # Arbitrary density
-    if Mode == 'crazy':
-        LB,UB,lower,upper = CB.Solve_Optimization(C, init_compo, iter_opt)
-        bound_list.append([LB,UB])
-        bounded_models.append([lower,upper])
+    LB, UB, lower, upper = CB.Solve_Optimization(C, init_compo, iter_opt)
+    bound_list.append([LB, UB])
+    bounded_models.append([lower, upper])
 
-    # Easy density
-    if Mode == 'easy':
-        f_std = np.std(Yintv_x)
-        f_mean = np.mean(Yintv_x)
-        g_std = copy.copy(f_std)
-        LB,UB = CB.Easy_bound(f_mean,f_std,g_std, C)
-        bound_list.append([LB,UB])
+    # # Arbitrary density
+    # if Mode == 'crazy':
+    #     LB,UB,lower,upper = CB.Solve_Optimization(C, init_compo, iter_opt)
+    #     bound_list.append([LB,UB])
+    #     bounded_models.append([lower,upper])
+    #
+    # # Easy density
+    # if Mode == 'easy':
+    #     f_std = np.std(Yintv_x)
+    #     f_mean = np.mean(Yintv_x)
+    #     g_std = copy.copy(f_std)
+    #     LB,UB = CB.Easy_bound(f_mean,f_std,g_std, C)
+    #     bound_list.append([LB,UB])
 
 print('')
 print('Observational mean')
@@ -125,18 +130,6 @@ for idx in range(len(UCB_list_B)):
         rem_arm = prev_num
 
 
-color_list = [color_box[idx] for idx in choice_box]
-plt.figure()
-plt.title('Illustration: which bounds affect choice of arms')
-phase1 = plt.scatter(range(rem_num),[1]*rem_num,c=color_list[:rem_num])
-phase2 = plt.scatter(range(rem_num, len(choice_box)),[1]*(len(choice_box) - rem_num),c=color_list[rem_num:])
-plt.yticks([])
-if rem_arm == 0:
-    plt.legend([phase1, phase2],['IT-bound','UCB'])
-else:
-    plt.legend([phase1, phase2], ['IT-bound', 'CB'])
-
-
 
 plt.figure()
 plt.title('Cum regret')
@@ -149,3 +142,17 @@ plt.title('Prob_opt_list')
 plt.plot(prob_opt,label='UCB')
 plt.plot(prob_opt_B,label='B-UCB')
 plt.legend()
+
+#
+# #
+# color_list = [color_box[idx] for idx in choice_box]
+# plt.figure()
+# plt.title('Illustration: which bounds affect choice of arms')
+# phase1 = plt.scatter(range(rem_num),[1]*rem_num,c=color_list[:rem_num])
+# phase2 = plt.scatter(range(rem_num, len(choice_box)),[1]*(len(choice_box) - rem_num),c=color_list[rem_num:])
+# plt.yticks([])
+# if rem_arm == 0:
+#     plt.legend([phase1, phase2],['IT-bound','UCB'])
+# else:
+#     plt.legend([phase1, phase2], ['IT-bound', 'CB'])
+
