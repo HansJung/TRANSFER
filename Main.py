@@ -11,9 +11,10 @@ D = 100
 N = 50000
 Ns = 20
 seed_num = np.random.randint(10000000)
-# seed_num = 7069723
+# seed_num = 6916731
+
 # 8030328 is good seed
-Mode = 'easy'
+Mode = 'crazy'
 
 print('Seed_num', seed_num)
 datagen = DataGen(D,N,Ns,Mode, seed_num)

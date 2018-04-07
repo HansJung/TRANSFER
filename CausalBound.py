@@ -133,7 +133,7 @@ class CausalBound(object):
         f_stds = np.ndarray.flatten(np.round(np.sqrt(self.dpobs.covariances_), rounding_digit))
         f_weights = np.round(self.dpobs.weights_, rounding_digit)
 
-        g_stds = np.array([1 / cls_size] * cls_size)
+        g_stds = np.array([1 / ((cls_size) **2)] * cls_size)
 
         # x0 = np.random.rand(cls_size)
         x0 = f_means
@@ -243,88 +243,6 @@ class CausalBound(object):
         UB = np.sum(curr_upper.x * curr_upper_weight)
 
         return [LB, UB, curr_lower, curr_upper]
-
-
-
-
-        #
-        #
-        #
-        #
-        #
-        #
-        #
-        #
-        #
-        #
-        # # Upper
-        # for iter_idx in range(iter_opt):
-        #     ### Update
-        #     prev_upper_weight = upper_weight
-        #     print("-"*100)
-        #     print(iter_idx," th iteration (Upper)")
-        #     upper_rank = rank_compute(upper.x,'upper')
-        #     # print(upper_rank)
-        #     # print(upper_update)
-        #     upper_update += np.power(upper_rank,2)
-        #     upper_weight = np.random.dirichlet(upper_update,1)
-        #     upper_update_quantity = np.sum(np.abs(upper_weight - prev_upper_weight))
-        #
-        #     print('prev_upper_weight', np.round(upper_weight,3))
-        #     print('prev_upper_x',prev_upper_x)
-        #     print('prev_upper_mean', np.round(np.sum(prev_upper_x * upper_weight),3) )
-        #     print('prev_upper_update',upper_update)
-        #     print('prev_upper update_quantity ', upper_update_quantity)
-        #
-        #     # upper_starting = upper.x + (1/(cls_size*(1+iter_idx))) * np.random.rand(cls_size)
-        #     upper_starting = copy.copy(prev_upper_x)
-        #
-        #     upper = self.Bound_Optimization(C, upper_starting, cls_size, f_means, f_stds, f_weights, g_stds, upper_weight, opt_mode='max')
-        #     curr_upper_x = copy.copy(upper.x)
-        #     upper_x_update = np.sum(np.abs(curr_upper_x - prev_upper_x))
-        #     print('curr_upper_x', curr_upper_x)
-        #     print('upper_x_update', upper_x_update)
-        #
-        #     upper_update_quantity = np.sum(np.abs(upper_weight - prev_upper_weight))
-        #
-        #
-        #     if upper_update_quantity < 0.005 or np.sum(curr_upper_x) == cls_size or upper_x_update < 0.001 * cls_size:
-        #         print('Sufficient update!')
-        #         break
-        #
-        # print("-" * 100)
-        # print("-" * 100)
-        # for iter_idx in range(iter_opt):
-        #     ### Update
-        #     print("-" * 100)
-        #     print(iter_idx, " th iteration (Lower)")
-        #     prev_lower_weight = lower_weight
-        #     lower_rank = rank_compute(lower.x,'lower')
-        #     lower_update += np.power(lower_rank,2)
-        #     lower_weight = np.random.dirichlet(lower_update, 1)
-        #     lower_update_quantity = np.sum(np.abs(lower_weight - prev_lower_weight))
-        #
-        #     print('lower_weight', np.round(lower_weight,3))
-        #     print('prev_lower_x', prev_lower_x)
-        #     print('lower_mean', np.round(np.sum(lower.x * lower_weight),3))
-        #     print('lower_update', lower_update)
-        #     print('lower update', lower_update_quantity)
-        #
-        #     # lower_starting = lower.x+ (1/(cls_size*(1+iter_idx))) * np.random.rand(cls_size)
-        #     lower_starting = copy.copy(prev_lower_x)
-        #     lower = self.Bound_Optimization(C, lower_starting, cls_size, f_means, f_stds, f_weights, g_stds, lower_weight, opt_mode='min')
-        #     curr_lower_x = copy.copy(lower.x)
-        #     lower_x_update = np.sum(np.abs(curr_lower_x - prev_lower_x))
-        #     print('lower_x_update', lower_x_update)
-        #
-        #     if lower_update_quantity < 0.005 or np.sum(lower.x) == 0 or lower_x_update < 0.005:
-        #         print('Sufficient update!')
-        #         break
-        #
-        # LB = np.sum(lower.x * lower_weight)
-        # UB = np.sum(upper.x * upper_weight)
-        #
-        # return [LB, UB, lower, upper]
 
 
     def Bound_Optimization(self, C, x0, cls_size, f_means, f_stds, f_weights, g_stds, g_weights, opt_mode):
