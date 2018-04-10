@@ -133,7 +133,9 @@ class CausalBound(object):
         f_stds = np.ndarray.flatten(np.round(np.sqrt(self.dpobs.covariances_), rounding_digit))
         f_weights = np.round(self.dpobs.weights_, rounding_digit)
 
-        g_stds = np.array([1 / ((cls_size) **2)] * cls_size)
+        # g_stds = np.array([1 / ((cls_size) )] * cls_size)
+        # g_stds = np.array([1] * cls_size)
+        g_stds = f_stds
 
         # x0 = np.random.rand(cls_size)
         x0 = f_means

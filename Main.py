@@ -10,11 +10,11 @@ import matplotlib.pyplot as plt
 D = 100
 N = 50000
 Ns = 20
-seed_num = np.random.randint(10000000)
-# seed_num = 6916731
+# seed_num = np.random.randint(10000000)
+seed_num = 9447124
 
 # 8030328 is good seed
-Mode = 'crazy'
+Mode = 'easy'
 
 print('Seed_num', seed_num)
 datagen = DataGen(D,N,Ns,Mode, seed_num)
@@ -40,7 +40,7 @@ bound_list = []
 bounded_models = []
 
 for x in [0,1]:
-    init_compo = 500
+    init_compo = 50
     Yobs_x = Obs[Obs['X']==x]['Y']
     Yintv_x = Intv[Intv['X']==x]['Y']
 
@@ -51,7 +51,7 @@ for x in [0,1]:
     DPFit_obs = DPFit(Yobs_x, init_compo)
     DPFit_obs.Conduct()
     dpobs = DPFit_obs.dpgmm
-    init_compo = sum(1 for x in dpobs.weights_ if x > 1e-4)
+    init_compo = sum(1 for x in dpobs.weights_ if x > 1e-3)
     DPFit_obs = DPFit(Yobs_x, init_compo)
     DPFit_obs.Conduct()
     dpobs = DPFit_obs.dpgmm
@@ -61,23 +61,23 @@ for x in [0,1]:
     C =  -np.log(px)
     CB = CausalBound(dpobs,C)
 
-    LB, UB, lower, upper = CB.Solve_Optimization(C, init_compo, iter_opt)
-    bound_list.append([LB, UB])
-    bounded_models.append([lower, upper])
+    # LB, UB, lower, upper = CB.Solve_Optimization(C, init_compo, iter_opt)
+    # bound_list.append([LB, UB])
+    # bounded_models.append([lower, upper])
 
-    # # Arbitrary density
-    # if Mode == 'crazy':
-    #     LB,UB,lower,upper = CB.Solve_Optimization(C, init_compo, iter_opt)
-    #     bound_list.append([LB,UB])
-    #     bounded_models.append([lower,upper])
-    #
-    # # Easy density
-    # if Mode == 'easy':
-    #     f_std = np.std(Yintv_x)
-    #     f_mean = np.mean(Yintv_x)
-    #     g_std = copy.copy(f_std)
-    #     LB,UB = CB.Easy_bound(f_mean,f_std,g_std, C)
-    #     bound_list.append([LB,UB])
+    # Arbitrary density
+    if Mode == 'crazy':
+        LB,UB,lower,upper = CB.Solve_Optimization(C, init_compo, iter_opt)
+        bound_list.append([LB,UB])
+        bounded_models.append([lower,upper])
+
+    # Easy density
+    if Mode == 'easy':
+        f_std = np.std(Yintv_x)
+        f_mean = np.mean(Yintv_x)
+        g_std = copy.copy(f_std)
+        LB,UB = CB.Easy_bound(f_mean,f_std,g_std, C)
+        bound_list.append([LB,UB])
 
 print('')
 print('Observational mean')
