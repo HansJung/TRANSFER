@@ -128,6 +128,39 @@ class DataGen(object):
         self.X_intv = self.intfy(np.asarray([0] * int(self.num_obs / 2) +
                                             [1] * int(self.num_obs / 2)))
 
+    def gen_policy_Y(self, X):
+        coef_zy = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
+        coef_u2y = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
+        coef_u3y = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
+
+        U2 = np.matrix(self.U2)
+        U3 = np.matrix(self.U3)
+        Z = np.matrix(self.Z)
+
+        if self.Mode == 'easy':
+            # Parametrization determination
+                ## Case 3: constant to 1
+                ## Case 2: constant to 1.5
+                ## Case 1: constant to 2
+            # Y = U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy
+            # Y = 100*(Y-np.mean(Y))/np.var(Y)
+            # Y += (2*np.array(X_obs.T)-1)
+            #
+            # Y_intv = U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy
+            # Y_intv = 100*(Y_intv - np.mean(Y)) / np.var(Y)
+            # Y_intv += (2 * np.array(X_intv.T) - 1)
+
+            Y =  5*U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy + 1000 * (2*np.array(X.T)-1)
+
+        elif self.Mode == 'crazy':
+            Y = 10*np.array(np.sin(U2 * coef_u2y)) + \
+                np.array(-1 * np.array(1 * np.power(U3 * coef_u3y, 1)) * 1*
+                         (2*np.array(X.T)-1)) + \
+                2*np.sin(np.array(np.power(np.abs(Z * coef_zy), 0.5))) * 1*np.array(2 * np.array(X.T) - 1)
+
+        Y = (Y-min(Y))/(max(Y)-min(Y))
+        return Y
+
     def gen_Y(self):
         coef_zy = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
         coef_u2y = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
@@ -204,7 +237,6 @@ class DataGen(object):
         Y_intv = self.Y_intv
         Y_intv = (Y_intv - min(Y_intv)) / (max(Y_intv) - min(Y_intv))
         Z = self.Z
-
 
         X_obs = np.asarray(X)
         Y_obs = np.asarray(Y)

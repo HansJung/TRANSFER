@@ -7,7 +7,6 @@ import copy
 from cvxpy import *
 
 
-
 class CausalBound(object):
     def __init__(self, dpobs, C):
         '''
@@ -77,7 +76,7 @@ class CausalBound(object):
             sum_result += pi_k * np.log( (sum_numer + reducing)  / (sum_deno + reducing) )
         return sum_result
 
-    def deriv_KL_GMM(self, f_weights, g_weights, f_means, g_means, f_stds, g_stds, mode):
+    def deriv_KL_GMM(self, f_weights, g_weights, f_means, g_means, f_stds, g_stds):
         sum_derive = [0] * len(g_weights)
 
         for j in range(len(g_weights)):
@@ -99,10 +98,11 @@ class CausalBound(object):
                     g_stds_jdot = g_stds[j_dot]
                     Aijdot = self.KL_Gaussian(f_mean_i, f_stds_i, g_mean_jdot, g_stds_jdot)
                     sum_exp_Aijdot += tau_jdot * np.exp(-Aijdot)
-                if mode == 'min':
                     sum_derive[j] += pi_i * exp_Aij / sum_exp_Aijdot * ((g_mean_j - f_mean_i) / (g_stds_j ** 2))
-                elif mode == 'max':
-                    sum_derive[j] += - (pi_i * exp_Aij / sum_exp_Aijdot * ((g_mean_j - f_mean_i) / (g_stds_j ** 2)))
+                # if mode == 'min':
+                #     sum_derive[j] += pi_i * exp_Aij / sum_exp_Aijdot * ((g_mean_j - f_mean_i) / (g_stds_j ** 2))
+                # elif mode == 'max':
+                #     sum_derive[j] += - (pi_i * exp_Aij / sum_exp_Aijdot * ((g_mean_j - f_mean_i) / (g_stds_j ** 2)))
         return sum_derive
 
     def Solve_Optimization(self, C, cls_size, iter_opt):
@@ -129,7 +129,7 @@ class CausalBound(object):
 
         rounding_digit = 12
 
-        f_means = np.round(self.dpobs.means_, rounding_digit)
+        f_means = np.round(self.dpobs.means_, rounding_digit).T[0]
         f_stds = np.ndarray.flatten(np.round(np.sqrt(self.dpobs.covariances_), rounding_digit))
         f_weights = np.round(self.dpobs.weights_, rounding_digit)
 
@@ -139,14 +139,16 @@ class CausalBound(object):
 
         # x0 = np.random.rand(cls_size)
         x0 = f_means
+        # x0 = f_means
 
         ''' Upper '''
         # Initial upper variable setting
         prev_upper_x0 = copy.copy(x0)
         prev_upper_prop = np.array([1] * cls_size)
-        prev_upper_weight = np.random.dirichlet(prev_upper_prop, 1)
+        prev_upper_weight = np.random.dirichlet(prev_upper_prop)
 
         ## Initial optimization based on initial value
+        print('initial x0', prev_upper_x0)
         prev_upper = self.Bound_Optimization(C, prev_upper_x0, cls_size, f_means, f_stds, f_weights, g_stds,
                                              prev_upper_weight, opt_mode='max')
 
@@ -155,10 +157,10 @@ class CausalBound(object):
             # Update based on previous optimization
             prev_upper_rank = rank_compute(prev_upper.x, 'upper')
             curr_upper_prop = prev_upper_prop + np.power(prev_upper_rank, 2)
-            curr_upper_weight = np.random.dirichlet(curr_upper_prop, 1)
+            curr_upper_weight = np.random.dirichlet(curr_upper_prop)
             curr_upper_x0 = copy.copy(prev_upper.x)
-            curr_noise = (1/(cls_size*(1+iter_idx))) * np.random.rand(cls_size)
-            curr_upper_x0 += curr_noise
+            # curr_noise = (1/(cls_size*(1+iter_idx))) * np.random.rand(cls_size)
+            # curr_upper_x0 += curr_noise
             curr_upper = self.Bound_Optimization(C, curr_upper_x0, cls_size, f_means, f_stds, f_weights, g_stds,
                                              curr_upper_weight, opt_mode='max')
 
@@ -195,7 +197,7 @@ class CausalBound(object):
         # Initial lower variable setting
         prev_lower_x0 = copy.copy(x0)
         prev_lower_prop = np.array([1] * cls_size)
-        prev_lower_weight = np.random.dirichlet(prev_lower_prop, 1)
+        prev_lower_weight = np.random.dirichlet(prev_lower_prop)
 
         ## Initial optimization based on initial value
         prev_lower = self.Bound_Optimization(C, prev_lower_x0, cls_size, f_means, f_stds, f_weights, g_stds,
@@ -206,10 +208,10 @@ class CausalBound(object):
             # Update based on previous optimization
             prev_lower_rank = rank_compute(prev_lower.x, 'lower')
             curr_lower_prop = prev_lower_prop + np.power(prev_lower_rank, 2)
-            curr_lower_weight = np.random.dirichlet(curr_lower_prop, 1)
+            curr_lower_weight = np.random.dirichlet(curr_lower_prop)
             curr_lower_x0 = copy.copy(prev_lower.x)
-            curr_noise = (1 / (cls_size * (1 + iter_idx))) * np.random.rand(cls_size)
-            curr_lower_x0 += curr_noise
+            # curr_noise = (1 / (cls_size * (1 + iter_idx))) * np.random.rand(cls_size)
+            # curr_lower_x0 += curr_noise
             curr_lower = self.Bound_Optimization(C, curr_lower_x0, cls_size, f_means, f_stds, f_weights, g_stds,
                                                  curr_lower_weight, opt_mode='min')
 
@@ -244,41 +246,38 @@ class CausalBound(object):
         LB = np.sum(curr_lower.x * curr_lower_weight)
         UB = np.sum(curr_upper.x * curr_upper_weight)
 
-        return [LB, UB, curr_lower, curr_upper]
+        return [LB, UB, curr_lower, curr_upper, curr_lower_weight, curr_upper_weight]
 
 
     def Bound_Optimization(self, C, x0, cls_size, f_means, f_stds, f_weights, g_stds, g_weights, opt_mode):
 
         cons = ({'type': 'ineq',
-                 'fun': lambda x: np.array(C - self.KL_GMM(f_weights, g_weights, f_means, x, f_stds, g_stds)[0])},
+                 'fun': lambda x: C - self.KL_GMM(f_weights, g_weights, f_means, x, f_stds, g_stds),
+                 'jac': lambda x: -1 * self.deriv_KL_GMM(f_weights, g_weights, f_means, x, f_stds, g_stds)},
                 {'type': 'ineq',
-                 'fun': lambda x: np.array(self.KL_GMM(f_weights, g_weights, f_means, x, f_stds, g_stds)[0])}
+                 'fun': lambda x: self.KL_GMM(f_weights, g_weights, f_means, x, f_stds, g_stds),
+                 'jac': lambda x: self.deriv_KL_GMM(f_weights, g_weights, f_means, x, f_stds, g_stds)}
                 )
         bdds = tuple([tuple([0, 1])] * cls_size)
 
         min_fun = lambda mu_do: np.sum(mu_do * g_weights)
+        min_fun_der = lambda mu_do: g_weights
+
         max_fun = lambda mu_do: -np.sum(mu_do * g_weights)
+        max_fun_der = lambda mu_do: -g_weights
 
         max_iter = 100
         # x0 = np.random.rand(cls_size)
 
         if opt_mode == 'max':
             fun = max_fun
-            jac_derive = lambda mu_do: self.deriv_KL_GMM(f_weights, g_weights, f_means, mu_do, f_stds, g_stds,mode='max')
-            solution = minimize(fun, x0=x0, constraints=cons, jac=jac_derive, method='TNC', bounds=bdds, tol=1e-12,
-                             options={'maxiter': max_iter, 'disp': True})
+            solution = minimize(fun, x0=x0, constraints=cons, jac=max_fun_der, method='Newton-CG', bounds=bdds, tol=1e-12,
+                                options={'maxiter': max_iter, 'disp': True})
 
         elif opt_mode == 'min':
             fun = min_fun
-            jac_derive = lambda mu_do: self.deriv_KL_GMM(f_weights, g_weights, f_means, mu_do, f_stds, g_stds,
-                                                         mode='min')
-            solution = minimize(fun, x0=x0, constraints=cons, jac=jac_derive, method='TNC', bounds=bdds, tol=1e-12,
+            solution = minimize(fun, x0=x0, constraints=cons, jac=min_fun_der, method='Newton-CG', bounds=bdds, tol=1e-12,
                                 options={'maxiter': max_iter, 'disp': True})
 
         return solution
 
-
-        # self.LB = np.sum(lower.x * g_weights)
-        # self.UB = np.sum(upper.x * g_weights)
-
-        # return [self.LB, self.UB, lower, upper]
