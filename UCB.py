@@ -2,10 +2,10 @@ import numpy as np
 import copy
 
 class UCB(object):
-    def __init__(self, bound_list, Intv,K):
+    def __init__(self, bound_list, Intv, K, T):
         self.K = K
         self.bdd_list = bound_list
-        self.T = int(len(Intv)/2)  # number of rounds
+        self.T = T
         self.arm_list = list(range(len(bound_list)))
 
         self.LB_arm = []

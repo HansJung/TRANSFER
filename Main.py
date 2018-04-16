@@ -7,8 +7,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 ''' From DataGen '''
-D = 100
-N = 100000
+D = 20
+N = 10000
+T = int(N/2)
 Ns = 20
 seed_num = np.random.randint(10000000)
 # seed_num = 7173521
@@ -45,7 +46,7 @@ dpobs_list = []
 
 
 for x in [0,1]:
-    init_compo = 50
+    init_compo = 200
     Yobs_x = Obs[Obs['X']==x]['Y']
     Yintv_x = Intv[Intv['X']==x]['Y']
 
@@ -74,14 +75,14 @@ for x in [0,1]:
 
     # Arbitrary density
     if Mode == 'crazy':
-        LB, UB, lower, upper, lower_weight, upper_weight = CB.Solve_Optimization(C, init_compo, iter_opt)
+        LB, UB, min_mu_list, max_mu_list, min_weight_list, max_weight_list = CB.Conduct_Optimization(C, init_compo, iter_opt)
         if x == 0 :
-            X0 = [LB, UB, lower, upper, lower_weight, upper_weight, C, dpobs]
+            X0 = [LB, UB, min_mu_list, max_mu_list, min_weight_list, max_weight_list, C, dpobs]
         elif x == 1:
-            X1 = [LB, UB, lower, upper, lower_weight, upper_weight, C, dpobs]
+            X1 = [LB, UB, min_mu_list, max_mu_list, min_weight_list, max_weight_list, C, dpobs]
         bound_list.append([LB,UB])
-        bounded_models.append([lower,upper])
-        weights.append([lower_weight, upper_weight])
+        # bounded_models.append([lower,upper])
+        # weights.append([lower_weight, upper_weight])
 
     # Easy density
     if Mode == 'easy':
@@ -100,64 +101,71 @@ print('')
 print(bound_list)
 print(np.mean(Intv[Intv['X']==0]['Y']), np.mean(Intv[Intv['X']==1]['Y']))
 
+#
+''' Test Code '''
+CB = CausalBound(dpobs,C)
+x0_min_mu_list = X0[2]
+x0_max_mu_list = X0[3]
+x1_min_mu_list = X1[2]
+x1_max_mu_list = X1[3]
 
-# ''' Test Code '''
-# CB = CausalBound(dpobs,C)
-# x0_lower = X0[2]
-# x0_upper = X0[3]
-# x1_lower = X1[2]
-# x1_upper = X1[3]
-#
-# x0_lower_weight = X0[4]
-# x0_upper_weight = X0[5]
-# x1_lower_weight = X1[4]
-# x1_upper_weight = X1[5]
-#
-# C0 = X0[6]
-# C1 = X1[6]
-#
-# dpobs_x0 = X0[7]
-# dpobs_x1 = X1[7]
-#
-# f_means_x0 = dpobs_x0.means_.T[0]
-# f_stds_x0 = np.ndarray.flatten(np.round(np.sqrt(dpobs_x0.covariances_), 12))
-# f_weights_x0 = dpobs_x0.weights_
-#
-# f_means_x1 = dpobs_x1.means_.T[0]
-# f_stds_x1 = np.ndarray.flatten(np.round(np.sqrt(dpobs_x1.covariances_), 12))
-# f_weights_x1 = dpobs_x1.weights_
-#
-# print('x0_lower Const', CB.KL_GMM(f_weights_x0,x0_lower_weight,f_means_x0,x0_lower.x,f_stds_x0,f_stds_x0), C0)
-# print('x0_upper Const', CB.KL_GMM(f_weights_x0,x0_upper_weight,f_means_x0,x0_upper.x,f_stds_x0,f_stds_x0), C0)
-# print('x1_lower Const', CB.KL_GMM(f_weights_x1,x1_lower_weight,f_means_x1,x1_lower.x,f_stds_x1,f_stds_x1), C1)
-# print('x1_upper Const', CB.KL_GMM(f_weights_x1,x1_upper_weight,f_means_x1,x1_upper.x,f_stds_x1,f_stds_x1), C1)
+x0_min_weight_list = X0[4]
+x0_max_weight_list = X0[5]
+x1_min_weight_list = X1[4]
+x1_max_weight_list = X1[5]
+
+C0 = X0[6]
+C1 = X1[6]
+
+dpobs_x0 = X0[7]
+dpobs_x1 = X1[7]
+
+f_means_x0 = dpobs_x0.means_.T[0]
+f_stds_x0 = np.ndarray.flatten(np.round(np.sqrt(dpobs_x0.covariances_), 12))
+f_weights_x0 = dpobs_x0.weights_
+
+f_means_x1 = dpobs_x1.means_.T[0]
+f_stds_x1 = np.ndarray.flatten(np.round(np.sqrt(dpobs_x1.covariances_), 12))
+f_weights_x1 = dpobs_x1.weights_
+
+print('x0_lower Const', CB.KL_GMM(f_weights_x0,x0_min_weight_list[len(x0_min_weight_list)-1],
+                                  f_means_x0,x0_min_mu_list[len(x0_min_mu_list)-1],f_stds_x0,f_stds_x0), C0)
+
+print('x0_upper Const', CB.KL_GMM(f_weights_x0,x0_max_weight_list[len(x0_max_weight_list)-1],
+                                  f_means_x0,x0_max_mu_list[len(x0_max_mu_list)-1],f_stds_x0,f_stds_x0), C0)
+
+print('x1_lower Const', CB.KL_GMM(f_weights_x1,x1_min_weight_list[len(x1_min_weight_list)-1],
+                                  f_means_x1,x1_min_mu_list[len(x1_min_mu_list)-1],f_stds_x1,f_stds_x1), C1)
+
+print('x1_upper Const', CB.KL_GMM(f_weights_x1,x1_max_weight_list[len(x1_max_weight_list)-1],
+                                  f_means_x1,x1_max_mu_list[len(x1_max_mu_list)-1],f_stds_x1,f_stds_x1), C1)
 
 
 
 ''' From UCB '''
-K = 1
-ucb = UCB(bound_list,Intv,K)
-[UCB_result, BUCB_result] = ucb.Bandit_Run()
-prob_opt, cum_regret, UCB_list, Arm, X_hat, Na_T = UCB_result
-prob_opt_B, cum_regret_B, UCB_list_B, UCB_hat_list_B, Arm_B, X_hat_B, Na_T_B = BUCB_result
-
-print(prob_opt)
-print(prob_opt_B)
-
-print(cum_regret)
-print(cum_regret_B)
-
-plt.figure()
-plt.title('Cum regret')
-plt.plot(cum_regret,label='UCB')
-plt.plot(cum_regret_B,label='B-UCB')
-plt.legend()
-
-plt.figure()
-plt.title('Prob_opt_list')
-plt.plot(prob_opt,label='UCB')
-plt.plot(prob_opt_B,label='B-UCB')
-plt.legend()
+# K = 1
+# ucb = UCB(bound_list,Intv, K, T)
+# [UCB_result, BUCB_result] = ucb.Bandit_Run()
+# prob_opt, cum_regret, UCB_list, Arm, X_hat, Na_T = UCB_result
+# prob_opt_B, cum_regret_B, UCB_list_B, UCB_hat_list_B, Arm_B, X_hat_B, Na_T_B = BUCB_result
+#
+# print(prob_opt)
+# print(prob_opt_B)
+#
+# print(cum_regret)
+# print(cum_regret_B)
+#
+# plt.figure()
+# plt.title('Cum regret')
+# plt.plot(cum_regret,label='UCB')
+# plt.plot(cum_regret_B,label='B-UCB')
+# plt.legend()
+#
+# plt.figure()
+# plt.title('Prob_opt_list')
+# plt.plot(prob_opt,label='UCB')
+# plt.plot(prob_opt_B,label='B-UCB')
+# plt.legend()
 
 
 # if np.mean(Intv[Intv['X']==0]['Y']) > np.mean(Intv[Intv['X']==1]['Y']):
