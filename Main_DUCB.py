@@ -98,86 +98,86 @@ for pl in range(len(policy_list)):
     Yintv_pl = Y_policy[pl]
     C_pl = C_list[pl]
     CB = CausalBound(dpobs, C_pl)
-    LB, UB, lower, upper, lower_weight, upper_weight = CB.Solve_Optimization(C_pl, init_compo, iter_opt)
+    LB, UB, min_mu_list, max_mu_list, min_weight_list, max_weight_list = CB.Conduct_Optimization(C_pl, init_compo, iter_opt)
     Bound_list.append([LB,UB])
-    Model_list.append([lower,upper])
-    Weight_list.append([lower_weight, upper_weight])
+    # Model_list.append([lower,upper])
+    # Weight_list.append([lower_weight, upper_weight])
     True_Mu.append(np.mean(Yintv_pl))
 
 print(Bound_list)
 print(True_Mu)
-
-def Compute_divergence_two(poly_k, poly_j, Z_obs, Xk):
-    pi_k_probs = poly_k.predict_proba(Z_obs)
-    pi_j_probs = poly_j.predict_proba(Z_obs)
-
-    sum_elem = 0
-    N = len(Z_obs)
-    for idx in range(N):
-        pi_k_idx = pi_k_probs[idx][Xk[idx]]
-        pi_j_idx = pi_j_probs[idx][Xk[idx]]
-        sum_elem += np.exp(pi_k_idx / (pi_j_idx + 1e-8)) - 1
-
-    return (sum_elem/N)-1
-
-def Compute_Mkj(poly_k, poly_j, Z_obs, Xk):
-    div_kj = Compute_divergence_two(poly_k,poly_j,Z_obs,Xk)
-    return np.log(div_kj + 1)+1
-
-def Mkj_Matrix(policy_list, X_pl_list, Z_obs):
-    N_poly = len(policy_list)
-    poly_idx_iter = list(itertools.product(list(range(N_poly)), list(range(N_poly))))
-    M_mat = np.zeros((N_poly, N_poly))
-    for k, j in poly_idx_iter:
-        # if k != j:
-        poly_k = policy_list[k]
-        poly_j = policy_list[j]
-        Xk = X_pl_list[k]
-        M_mat[k, j] = Compute_Mkj(poly_k, poly_j, Z_obs, Xk)
-    return M_mat
-
-def Poly_ratio_kj(poly_k, poly_j, zs, xj_s):
-    return poly_k.predict_proba(zs)[xj_s] / poly_j.predict_proba(zs)[xj_s]
-
-def Clipped_est(k, Ns, M, policy_idx_list, policy_list, Tau_s, Y_pl_list, Z_obs, X_pl_list, t):
-    eps_t = 2/t
-    poly_k = policy_list[k]
-    Zk_t = 0
-    for j in policy_idx_list:
-        Zk_t += Ns[j] / M[k,j]
-
-    mu_k = 0
-    for j in policy_idx_list:
-        poly_j = policy_list[j]
-        Xj = X_pl_list[j]
-        for s in Tau_s[j]:
-            if Poly_ratio_kj(poly_k, poly_j, Z_obs.ix[s], Xj[s]) < 2*np.log(2/eps_t)*M[k,j]:
-                mu_k += (1/M[k,j]) * (Y_pl_list[j][s]) * Poly_ratio_kj(poly_k, poly_j, Z_obs.ix[s], Xj[s])
-            else:
-                continue
-    mu_k = mu_k / Zk_t
-    return mu_k
-
-def Upper_bonus(k, Ns, M, policy_idx_list, t):
-    Zk_t = 0
-    c1 = 16
-    for j in policy_idx_list:
-        Zk_t += Ns[j] / M[k, j]
-    C = (np.sqrt(c1*t*np.log(t))) / (Zk_t)
-    Bt = np.real(C*lambertw(2/(C+1e-8)))
-    Sk = 1.5*Bt
-    return Sk
-
-
-
-
-
-
-Ns = dict()
-Tau_s = dict()
-for s in range(len(policy_list)):
-    Ns[s] = 0
-    Tau_s = []
+#
+# def Compute_divergence_two(poly_k, poly_j, Z_obs, Xk):
+#     pi_k_probs = poly_k.predict_proba(Z_obs)
+#     pi_j_probs = poly_j.predict_proba(Z_obs)
+#
+#     sum_elem = 0
+#     N = len(Z_obs)
+#     for idx in range(N):
+#         pi_k_idx = pi_k_probs[idx][Xk[idx]]
+#         pi_j_idx = pi_j_probs[idx][Xk[idx]]
+#         sum_elem += np.exp(pi_k_idx / (pi_j_idx + 1e-8)) - 1
+#
+#     return (sum_elem/N)-1
+#
+# def Compute_Mkj(poly_k, poly_j, Z_obs, Xk):
+#     div_kj = Compute_divergence_two(poly_k,poly_j,Z_obs,Xk)
+#     return np.log(div_kj + 1)+1
+#
+# def Mkj_Matrix(policy_list, X_pl_list, Z_obs):
+#     N_poly = len(policy_list)
+#     poly_idx_iter = list(itertools.product(list(range(N_poly)), list(range(N_poly))))
+#     M_mat = np.zeros((N_poly, N_poly))
+#     for k, j in poly_idx_iter:
+#         # if k != j:
+#         poly_k = policy_list[k]
+#         poly_j = policy_list[j]
+#         Xk = X_pl_list[k]
+#         M_mat[k, j] = Compute_Mkj(poly_k, poly_j, Z_obs, Xk)
+#     return M_mat
+#
+# def Poly_ratio_kj(poly_k, poly_j, zs, xj_s):
+#     return poly_k.predict_proba(zs)[xj_s] / poly_j.predict_proba(zs)[xj_s]
+#
+# def Clipped_est(k, Ns, M, policy_idx_list, policy_list, Tau_s, Y_pl_list, Z_obs, X_pl_list, t):
+#     eps_t = 2/t
+#     poly_k = policy_list[k]
+#     Zk_t = 0
+#     for j in policy_idx_list:
+#         Zk_t += Ns[j] / M[k,j]
+#
+#     mu_k = 0
+#     for j in policy_idx_list:
+#         poly_j = policy_list[j]
+#         Xj = X_pl_list[j]
+#         for s in Tau_s[j]:
+#             if Poly_ratio_kj(poly_k, poly_j, Z_obs.ix[s], Xj[s]) < 2*np.log(2/eps_t)*M[k,j]:
+#                 mu_k += (1/M[k,j]) * (Y_pl_list[j][s]) * Poly_ratio_kj(poly_k, poly_j, Z_obs.ix[s], Xj[s])
+#             else:
+#                 continue
+#     mu_k = mu_k / Zk_t
+#     return mu_k
+#
+# def Upper_bonus(k, Ns, M, policy_idx_list, t):
+#     Zk_t = 0
+#     c1 = 16
+#     for j in policy_idx_list:
+#         Zk_t += Ns[j] / M[k, j]
+#     C = (np.sqrt(c1*t*np.log(t))) / (Zk_t)
+#     Bt = np.real(C*lambertw(2/(C+1e-8)))
+#     Sk = 1.5*Bt
+#     return Sk
+#
+#
+#
+#
+#
+#
+# Ns = dict()
+# Tau_s = dict()
+# for s in range(len(policy_list)):
+#     Ns[s] = 0
+#     Tau_s = []
 
 
 

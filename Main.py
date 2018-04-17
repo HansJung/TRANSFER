@@ -11,8 +11,9 @@ D = 20
 N = 10000
 T = int(N/2)
 Ns = 20
-seed_num = np.random.randint(10000000)
-# seed_num = 7173521
+# seed_num = np.random.randint(10000000)
+seed_num = 8171265
+
 
 # 8030328 is good seed
 Mode = 'crazy'
@@ -57,7 +58,7 @@ for x in [0,1]:
     DPFit_obs = DPFit(Yobs_x, init_compo)
     DPFit_obs.Conduct()
     dpobs = DPFit_obs.dpgmm
-    init_compo = sum(1 for x in dpobs.weights_ if x > 1e-2)
+    init_compo = sum(1 for x in dpobs.weights_ if x > 1e-4)
     DPFit_obs = DPFit(Yobs_x, init_compo)
     DPFit_obs.Conduct()
     dpobs = DPFit_obs.dpgmm
@@ -77,9 +78,9 @@ for x in [0,1]:
     if Mode == 'crazy':
         LB, UB, min_mu_list, max_mu_list, min_weight_list, max_weight_list = CB.Conduct_Optimization(C, init_compo, iter_opt)
         if x == 0 :
-            X0 = [LB, UB, min_mu_list, max_mu_list, min_weight_list, max_weight_list, C, dpobs]
+            X0 = [LB, UB, min_mu_list, max_mu_list, min_weight_list, max_weight_list, C, dpobs, init_compo, dpintv]
         elif x == 1:
-            X1 = [LB, UB, min_mu_list, max_mu_list, min_weight_list, max_weight_list, C, dpobs]
+            X1 = [LB, UB, min_mu_list, max_mu_list, min_weight_list, max_weight_list, C, dpobs, init_compo, dpintv]
         bound_list.append([LB,UB])
         # bounded_models.append([lower,upper])
         # weights.append([lower_weight, upper_weight])
@@ -120,6 +121,12 @@ C1 = X1[6]
 dpobs_x0 = X0[7]
 dpobs_x1 = X1[7]
 
+cls_x0 = X0[8]
+cls_x1 = X1[8]
+
+dpintv_x0 = X0[9]
+dpintv_x1 = X0[9]
+
 f_means_x0 = dpobs_x0.means_.T[0]
 f_stds_x0 = np.ndarray.flatten(np.round(np.sqrt(dpobs_x0.covariances_), 12))
 f_weights_x0 = dpobs_x0.weights_
@@ -143,29 +150,29 @@ print('x1_upper Const', CB.KL_GMM(f_weights_x1,x1_max_weight_list[len(x1_max_wei
 
 
 ''' From UCB '''
-# K = 1
-# ucb = UCB(bound_list,Intv, K, T)
-# [UCB_result, BUCB_result] = ucb.Bandit_Run()
-# prob_opt, cum_regret, UCB_list, Arm, X_hat, Na_T = UCB_result
-# prob_opt_B, cum_regret_B, UCB_list_B, UCB_hat_list_B, Arm_B, X_hat_B, Na_T_B = BUCB_result
-#
-# print(prob_opt)
-# print(prob_opt_B)
-#
-# print(cum_regret)
-# print(cum_regret_B)
-#
-# plt.figure()
-# plt.title('Cum regret')
-# plt.plot(cum_regret,label='UCB')
-# plt.plot(cum_regret_B,label='B-UCB')
-# plt.legend()
-#
-# plt.figure()
-# plt.title('Prob_opt_list')
-# plt.plot(prob_opt,label='UCB')
-# plt.plot(prob_opt_B,label='B-UCB')
-# plt.legend()
+K = 1
+ucb = UCB(bound_list,Intv, K, T)
+[UCB_result, BUCB_result] = ucb.Bandit_Run()
+prob_opt, cum_regret, UCB_list, Arm, X_hat, Na_T = UCB_result
+prob_opt_B, cum_regret_B, UCB_list_B, UCB_hat_list_B, Arm_B, X_hat_B, Na_T_B = BUCB_result
+
+print(prob_opt)
+print(prob_opt_B)
+
+print(cum_regret)
+print(cum_regret_B)
+
+plt.figure()
+plt.title('Cum regret')
+plt.plot(cum_regret,label='UCB')
+plt.plot(cum_regret_B,label='B-UCB')
+plt.legend()
+
+plt.figure()
+plt.title('Prob_opt_list')
+plt.plot(prob_opt,label='UCB')
+plt.plot(prob_opt_B,label='B-UCB')
+plt.legend()
 
 
 # if np.mean(Intv[Intv['X']==0]['Y']) > np.mean(Intv[Intv['X']==1]['Y']):
