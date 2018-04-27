@@ -258,9 +258,9 @@ class CausalBound(object):
         for iter_idx in range(1,iter_opt):
             curr_mu_solver = self.Bound_Optimization_mu(C,prev_mu_list[iter_idx-1],cls_size,f_means,f_stds,f_weights,g_stds,prev_weights_list[iter_idx-1],opt_mode=opt_mode)
             if opt_mode == 'min':
-                prev_mu_list.append(curr_mu_solver.x - (1/(max(20,cls_size)*iter_idx)) *np.random.random(cls_size))
+                prev_mu_list.append(curr_mu_solver.x - (1/(max(10,cls_size)*iter_idx)) *np.random.random(cls_size))
             else:
-                prev_mu_list.append(curr_mu_solver.x + (1 / (max(20,cls_size)* iter_idx)) * np.random.random(cls_size))
+                prev_mu_list.append(curr_mu_solver.x + (1 / (max(10,cls_size)* iter_idx)) * np.random.random(cls_size))
             curr_weight_solver = self.Bound_Optimization_weights(C,prev_weights_list[iter_idx-1],cls_size,f_means,f_stds,f_weights,g_stds,prev_mu_list[iter_idx],opt_mode=opt_mode)
             prev_weights_list.append(curr_weight_solver.x)
 

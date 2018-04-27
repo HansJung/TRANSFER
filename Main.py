@@ -11,8 +11,8 @@ D = 20
 N = 10000
 T = int(N/2)
 Ns = 20
-seed_num = np.random.randint(10000000)
-# seed_num = 8171265
+# seed_num = np.random.randint(10000000)
+seed_num = 2917291
 
 
 # 8030328 is good seed
