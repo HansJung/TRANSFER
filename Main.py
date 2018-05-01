@@ -172,11 +172,14 @@ plt.rc('font', size=40)          # controls default text sizes
 plt.rc('xtick', labelsize=25)    # fontsize of the tick labels
 plt.rc('ytick', labelsize=25)    # fontsize of the tick labels
 plt.rc('legend', fontsize=30)    # legend fontsize
+
 plt.title('Case 2')
 plt.ylabel('Cumulative regret')
 plt.xlabel('Trials')
-plt.plot(cum_regret,label='UCB')
-plt.plot(cum_regret_B,label='B-UCB')
+cum_UCB = plt.plot(cum_regret,label='UCB')
+cum_BUCB = plt.plot(cum_regret_B,label='B-UCB')
+plt.setp(cum_UCB, linewidth=5)       # set both to dashed
+plt.setp(cum_BUCB, linewidth=5)       # set both to dashed
 plt.legend()
 
 # plt.figure()
