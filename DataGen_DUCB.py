@@ -125,8 +125,13 @@ class DataGen(object):
             X_obs = np.round(X_obs, 0)
             # self.X_obs = X_obs
             self.X_obs = self.intfy(np.array(np.matrix.flatten(X_obs).tolist()[0]))
-        self.X_intv = self.intfy(np.asarray([0] * int(self.num_obs / 2) +
-                                            [1] * int(self.num_obs / 2)))
+
+        X_intv = sp.expit( Z * coef_xz + 10  )
+        X_intv = (X_intv - min(X_intv)) / (max(X_intv) - min(X_intv))
+        X_intv = np.round(X_intv,0)
+        self.X_intv = self.intfy(np.array(np.matrix.flatten(X_intv).tolist()[0]))
+        # self.X_intv = self.intfy(np.asarray([0] * int(self.num_obs / 2) +
+        #                                     [1] * int(self.num_obs / 2)))
 
     def gen_policy_Y(self, X):
         coef_zy = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
@@ -188,7 +193,7 @@ class DataGen(object):
 
             Y =  5*U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy + 1000 * (2*np.array(X_obs.T)-1)
             Y_intv = 5* U2 * coef_u2y + U3 * coef_u3y + Z * coef_zy + 1000* (2*np.array(X_intv.T)-1)
-            print(Y)
+            # print(Y)
 
         elif self.Mode == 'crazy':
             Y = 10*np.array(np.sin(U2 * coef_u2y)) + \
@@ -196,7 +201,7 @@ class DataGen(object):
                          (2*np.array(X_obs.T)-1)) + \
                 2*np.sin(np.array(np.power(np.abs(Z * coef_zy), 0.5))) * 1*np.array(2 * np.array(X_obs.T) - 1)
 
-            print(Y)
+            # print(Y)
 
             #
             # # Y = 100 * ((Y - np.mean(Y, axis=0)) / np.var(Y))

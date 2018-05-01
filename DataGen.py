@@ -119,7 +119,7 @@ class DataGen(object):
             self.X_obs = self.intfy(np.array(np.matrix.flatten(X_obs).tolist()[0]))
 
         elif self.Mode == 'crazy':
-            X_obs = sp.expit( np.power( np.abs(U1 * coef_u1x), 1)  - np.power(U3 * coef_u3x , 1) + (np.exp(Z * coef_xz)) )
+            X_obs = sp.expit( np.power( np.abs(3*U1 * coef_u1x), 1)  - np.power(U3 * coef_u3x , 2) + (np.exp(Z * coef_xz)) )
 
             X_obs = (X_obs - min(X_obs)) / (max(X_obs) - min(X_obs))
             X_obs = np.round(X_obs, 0)
@@ -158,20 +158,20 @@ class DataGen(object):
             print(Y)
 
         elif self.Mode == 'crazy':
-            Y = 2*np.array(np.sin(U2 * coef_u2y)) + \
+            Y = 5*np.array(np.sin(U2 * coef_u2y)) + \
                 np.array(-1 * np.array(1 * np.power(U3 * coef_u3y, 1)) * 1*
                          (2*np.array(X_obs.T)-1)) + \
-                1*np.sin(np.array(np.power(np.abs(Z * coef_zy), 0.5))) * 1*np.array(2 * np.array(X_obs.T) - 1)
+                3*np.sin(np.array(np.power(np.abs(Z * coef_zy), 0.3))) * 1*np.array(2 * np.array(X_obs.T) - 1)
 
             print(Y)
 
             #
             # # Y = 100 * ((Y - np.mean(Y, axis=0)) / np.var(Y))
             #
-            Y_intv = 2*np.array(np.sin(U2 * coef_u2y)) + \
+            Y_intv = 5*np.array(np.sin(U2 * coef_u2y)) + \
                      np.array(-1 * np.array(1* np.power(U3 * coef_u3y,1)) * 1*
                               (2*np.array(X_intv.T)-1)) + \
-                     1*np.sin(np.array(np.power(np.abs(Z * coef_zy),0.5) )) * 1*np.array(2 * np.array(X_intv.T) - 1)
+                     3*np.sin(np.array(np.power(np.abs(Z * coef_zy),0.3) )) * 1*np.array(2 * np.array(X_intv.T) - 1)
 
             # Y_intv = 100 * ((Y_intv - np.mean(Y, axis=0)) / np.var(Y))
 

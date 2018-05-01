@@ -7,12 +7,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 ''' From DataGen '''
-D = 20
+D = 50
 N = 10000
 T = int(N/2)
 Ns = 20
-# seed_num = np.random.randint(10000000)
-seed_num = 2917291
+seed_num = np.random.randint(10000000)
+# seed_num = 2917291
 
 
 # 8030328 is good seed
@@ -173,7 +173,7 @@ plt.rc('xtick', labelsize=25)    # fontsize of the tick labels
 plt.rc('ytick', labelsize=25)    # fontsize of the tick labels
 plt.rc('legend', fontsize=30)    # legend fontsize
 
-plt.title('Case 2')
+plt.title('Case 3')
 plt.ylabel('Cumulative regret')
 plt.xlabel('Trials')
 cum_UCB = plt.plot(cum_regret,label='UCB')
