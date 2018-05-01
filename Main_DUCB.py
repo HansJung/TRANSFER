@@ -11,7 +11,7 @@ from D_UCB import DUCB
 D = 5
 N = 1000
 Ns = 20
-T = 200
+T = 100
 seed_num = np.random.randint(10000000)
 Mode = 'crazy'
 
@@ -144,7 +144,21 @@ print(True_Mu)
 ''' From UCB '''
 K = 1
 ducb = DUCB(Bound_list,policy_list,Z_obs,Y_pl_list,X_pl_list,K,T)
-ducb.DUCB()
+prob_opt_list, cum_regret_list = ducb.DUCB()
+
+plt.figure()
+plt.rc('font', size=40)          # controls default text sizes
+plt.rc('xtick', labelsize=25)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=25)    # fontsize of the tick labels
+plt.rc('legend', fontsize=30)    # legend fontsize
+
+plt.title('Case 3')
+plt.ylabel('Cumulative regret')
+plt.xlabel('Trials')
+cum_UCB = plt.plot(cum_regret_list,label='UCB')
+
+
+
 
 #
 # def Compute_divergence_two(poly_k, poly_j, Z_obs, Xk):
