@@ -167,17 +167,17 @@ print(cum_regret_B)
 #         'size'   : 22}
 
 #
-# plt.figure()
-# plt.rc('font', size=20)          # controls default text sizes
-# plt.rc('xtick', labelsize=12)    # fontsize of the tick labels
-# plt.rc('ytick', labelsize=12)    # fontsize of the tick labels
-# plt.rc('legend', fontsize=15)    # legend fontsize
-# plt.title('Case 2')
-# plt.ylabel('Cumulative regret')
-# plt.xlabel('Trials')
-# plt.plot(cum_regret,label='UCB')
-# plt.plot(cum_regret_B,label='B-UCB')
-# plt.legend()
+plt.figure()
+plt.rc('font', size=40)          # controls default text sizes
+plt.rc('xtick', labelsize=25)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=25)    # fontsize of the tick labels
+plt.rc('legend', fontsize=30)    # legend fontsize
+plt.title('Case 2')
+plt.ylabel('Cumulative regret')
+plt.xlabel('Trials')
+plt.plot(cum_regret,label='UCB')
+plt.plot(cum_regret_B,label='B-UCB')
+plt.legend()
 
 # plt.figure()
 # plt.title('Prob_opt_list')
