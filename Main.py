@@ -162,18 +162,29 @@ print(prob_opt_B)
 print(cum_regret)
 print(cum_regret_B)
 
-plt.figure()
-plt.title('Cum regret')
-plt.plot(cum_regret,label='UCB')
-plt.plot(cum_regret_B,label='B-UCB')
-plt.legend()
+# font = {'family' : 'normal',
+#         'weight' : 'bold',
+#         'size'   : 22}
 
-plt.figure()
-plt.title('Prob_opt_list')
-plt.plot(prob_opt,label='UCB')
-plt.plot(prob_opt_B,label='B-UCB')
-plt.legend()
 #
+# plt.figure()
+# plt.rc('font', size=20)          # controls default text sizes
+# plt.rc('xtick', labelsize=12)    # fontsize of the tick labels
+# plt.rc('ytick', labelsize=12)    # fontsize of the tick labels
+# plt.rc('legend', fontsize=15)    # legend fontsize
+# plt.title('Case 2')
+# plt.ylabel('Cumulative regret')
+# plt.xlabel('Trials')
+# plt.plot(cum_regret,label='UCB')
+# plt.plot(cum_regret_B,label='B-UCB')
+# plt.legend()
+
+# plt.figure()
+# plt.title('Prob_opt_list')
+# plt.plot(prob_opt,label='UCB')
+# plt.plot(prob_opt_B,label='B-UCB')
+# plt.legend()
+# #
 #
 # # if np.mean(Intv[Intv['X']==0]['Y']) > np.mean(Intv[Intv['X']==1]['Y']):
 # #     opt_arm = 0
