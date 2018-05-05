@@ -192,6 +192,7 @@ class DUCB(object):
             Ns[st] += 1
             Sto_pick.append(st)
 
+
             Reward_pl[st].append(rt)
             sum_reward += rt
 
