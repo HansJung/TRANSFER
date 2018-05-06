@@ -8,8 +8,8 @@ from CausalBound import CausalBound
 from D_UCB import DUCB
 
 
-D = 5
-N = 1000
+D = 20
+N = 3000
 Ns = 20
 T = 1000
 seed_num = np.random.randint(10000000)
@@ -144,18 +144,50 @@ print(True_Mu)
 ''' From UCB '''
 K = 1
 ducb = DUCB(Bound_list,policy_list,Z_obs,Y_pl_list,X_pl_list,K,T)
-prob_opt_list, cum_regret_list, Sto_Pick = ducb.DUCB()
+[UCB_result, BUCB_result] = ducb.Bandit_Run()
+prob_opt_list, cum_regret_list, Sto_pick, mu_k_dict = UCB_result
+prob_opt_list_B, cum_regret_list_B, Sto_pick_B, mu_k_dict_B = BUCB_result
 
+print(prob_opt_list)
+print(prob_opt_list_B)
+
+print(cum_regret_list)
+print(cum_regret_list_B)
+
+# font = {'family' : 'normal',
+#         'weight' : 'bold',
+#         'size'   : 22}
+
+#
 plt.figure()
 plt.rc('font', size=40)          # controls default text sizes
 plt.rc('xtick', labelsize=25)    # fontsize of the tick labels
 plt.rc('ytick', labelsize=25)    # fontsize of the tick labels
 plt.rc('legend', fontsize=30)    # legend fontsize
 
-plt.title('Case 3')
+plt.title('Case XXX')
 plt.ylabel('Cumulative regret')
 plt.xlabel('Trials')
 cum_UCB = plt.plot(cum_regret_list,label='UCB')
+cum_BUCB = plt.plot(cum_regret_list_B,label='B-UCB')
+plt.setp(cum_UCB, linewidth=5)       # set both to dashed
+plt.setp(cum_BUCB, linewidth=5)       # set both to dashed
+plt.legend()
+
+
+
+# prob_opt_list, cum_regret_list, Sto_Pick, UCB_list = ducb.DUCB()
+#
+# plt.figure()
+# plt.rc('font', size=40)          # controls default text sizes
+# plt.rc('xtick', labelsize=25)    # fontsize of the tick labels
+# plt.rc('ytick', labelsize=25)    # fontsize of the tick labels
+# plt.rc('legend', fontsize=30)    # legend fontsize
+#
+# plt.title('Case 3')
+# plt.ylabel('Cumulative regret')
+# plt.xlabel('Trials')
+# cum_UCB = plt.plot(cum_regret_list,label='UCB')
 
 
 
