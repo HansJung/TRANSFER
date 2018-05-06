@@ -66,7 +66,8 @@ for x in [0,1]:
 
     ''' From Causal Bound '''
     px = len(Obs[Obs['X'] == x])/ N
-    C =  -np.log(px)
+    # C =  -np.log(px)
+    C = 1/(8*(px**2))
     C_list.append(C)
     CB = CausalBound(dpobs,C)
 

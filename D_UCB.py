@@ -148,6 +148,42 @@ class DUCB(object):
         mu_k = mu_k / Zk_t
         return mu_k
 
+    def Compute_Akj(self, t, k, j, M, X_pl_list, Y_pl_list, Z_obs, policy_list):
+        '''
+
+        :param t: Time t
+        :param k: Index of policy k
+        :param j: Index of policy j
+        :param M: Policy matrix M
+        :param X_pl_list: List of List of arm pull of policy
+        :param Y_pl_list: List of List of arm pull of reward
+        :param Z_obs: Observation at Z_obs
+        :param policy_list:
+        :return:
+        '''
+
+        Mkj = M[k,j] # Policy matrix
+        eps_t = 2 / (t+1e-8)  # Unbiased error reduced over time t
+        Zt = Z_obs.ix[t] # Context at time t
+        Xjt = X_pl_list[j][t]
+        Yjt = Y_pl_list[j][t]
+
+        poly_k = policy_list[k]  # Policy K of our interest
+        poly_j = policy_list[j]
+
+        poly_ratio_kj = self.Poly_ratio_kj(poly_k, poly_j, Zt, Xjt)
+        idx_poly = poly_ratio_kj < 2 * np.log(2 / eps_t) * M[k, j]
+
+        Akj = idx_poly * poly_ratio_kj * Yjt * (1/Mkj)
+        return Akj
+
+
+
+
+
+
+
+
     def Upper_bonus(self, k, Ns, M, policy_idx_list, t):
         Zk_t = 0
         c1 = 16
@@ -245,6 +281,9 @@ class DUCB(object):
             cum_regret_list.append(cum_regret)
         return prob_opt_list, cum_regret_list
 
+    # def Compute_Akj(self, t,k,j, ):
+
+
     def DUCB(self):
         Ns = dict()
         Tau_s = dict()
@@ -255,6 +294,16 @@ class DUCB(object):
         prob_opt_list = []
         cum_regret_list = []
         Sto_pick = []
+
+        Akjt_dict = dict()
+        for i in self.policy_idx_list:
+            for j in self.policy_idx_list:
+                Akjt_dict[i,j] = list()
+
+        mu_k_dict = dict()
+        for i in self.policy_idx_list:
+            mu_k_dict[i] = list()
+
 
         M = self.Mkj_Matrix(self.policy_list,self.X_list,self.Z)
 
@@ -288,24 +337,36 @@ class DUCB(object):
             prob_opt_list.append(prob_opt)
             cum_regret_list.append(cum_regret)
 
+        # Initial Compute Akj
+        for t in range(self.K * len(self.policy_idx_list)):
+            for k in self.policy_idx_list:
+                for j in self.policy_idx_list:
+                    Akj = self.Compute_Akj(t,k,j,M,self.X_list,self.Y_list,self.Z,self.policy_list)
+                    Akjt_dict[k,j].append(Akj)
+
+
         # Run
         for t in range(self.K * len(self.policy_idx_list), self.T):
-            print(t)
-            # Observe context
-            zt = self.Z.ix[t]
+            # print(t)
+            for k in self.policy_idx_list:
+                for j in self.policy_idx_list:
+                    Akj = self.Compute_Akj(t,k,j,M,self.X_list,self.Y_list,self.Z,self.policy_list)
+                    Akjt_dict[k,j].append(Akj)
 
-            # Store the UCB of each policy
+            mu_k_list = []
             UCB_list = []
-            # Compute K(t) = argmax_k Uk(t-1)
-            ## Compute clip estimator
-            for k in self.policy_idx_list: # For each stochastic policy
-                st = self.policy_list[k]
-                # Compute expert k's clipped estimator
-                mu_k = self.Clipped_est(k,Ns,M,self.policy_idx_list,self.policy_list,Tau_s,self.Y_list,self.Z,self.X_list,t)
-                # Compute expert k'th upper bound
-                s_k = self.Upper_bonus(k,Ns,M,self.policy_idx_list,t)
-                UCB_list.append(mu_k + s_k)
-
+            for k in self.policy_idx_list:
+                mu_k_t = 0
+                zk = 0
+                for j in self.policy_idx_list:
+                    for s in Tau_s[j]:
+                        mu_k_t += Akjt_dict[k,j][s]
+                    zk += Ns[j] / M[k,j]
+                mu_k_t /= zk
+                mu_k_dict[k].append(mu_k_t)
+                mu_k_list.append(mu_k_t)
+                s_k = self.Upper_bonus(k, Ns, M, self.policy_idx_list, t)
+                UCB_list.append(mu_k_t + s_k)
             # Choose the expert and store the expert index
             k_star = np.argmax(UCB_list)
             Sto_pick.append(k_star)
@@ -329,7 +390,53 @@ class DUCB(object):
 
             prob_opt_list.append(prob_opt)
             cum_regret_list.append(cum_regret)
-        return prob_opt_list, cum_regret_list
+        return prob_opt_list, cum_regret_list, Sto_pick
+
+
+
+
+            #
+            #
+            # print(t)
+            # # Observe context
+            # zt = self.Z.ix[t]
+            #
+            # # Store the UCB of each policy
+            # UCB_list = []
+            # # Compute K(t) = argmax_k Uk(t-1)
+            # ## Compute clip estimator
+            # for k in self.policy_idx_list: # For each stochastic policy
+            #     st = self.policy_list[k]
+            #     # Compute expert k's clipped estimator
+            #     mu_k = self.Clipped_est(k,Ns,M,self.policy_idx_list,self.policy_list,Tau_s,self.Y_list,self.Z,self.X_list,t)
+            #     # Compute expert k'th upper bound
+            #     s_k = self.Upper_bonus(k,Ns,M,self.policy_idx_list,t)
+            #     UCB_list.append(mu_k + s_k)
+
+        #     # Choose the expert and store the expert index
+        #     k_star = np.argmax(UCB_list)
+        #     Sto_pick.append(k_star)
+        #
+        #     # Policy k_star's  choosing arm
+        #     at = self.X_list[k_star][t]
+        #
+        #     # Poliy k_star receiving reward
+        #     rt = self.Y_list[k_star][t]
+        #
+        #     # Store the time step when the expert st chose.
+        #     Tau_s[k_star].append(t)
+        #     Ns[k_star] += 1
+        #     Sto_pick.append(k_star)
+        #
+        #     Reward_pl[k_star].append(rt)
+        #     sum_reward += rt
+        #
+        #     prob_opt = Ns[self.opt_exp] / (t + 1)
+        #     cum_regret += self.mu_opt - self.mu_list[k_star]
+        #
+        #     prob_opt_list.append(prob_opt)
+        #     cum_regret_list.append(cum_regret)
+        # return prob_opt_list, cum_regret_list
 
 
 

@@ -240,13 +240,21 @@ class CausalBound(object):
     def Solve_Optimization(self, C, cls_size, iter_opt, opt_mode):
         # Observations
         rounding_digit = 8
-        f_means = np.round(self.dpobs.means_, rounding_digit).T[0]
-        f_stds = np.ndarray.flatten(np.round(np.sqrt(self.dpobs.covariances_), rounding_digit))
-        f_weights = np.round(self.dpobs.weights_, rounding_digit)
-        g_stds = f_stds
 
-        prev_mu = copy.copy(f_means)
-        prev_weights = copy.copy(f_weights)
+        ''' Original '''
+        # f_means = np.round(self.dpobs.means_, rounding_digit).T[0]
+        # f_stds = np.ndarray.flatten(np.round(np.sqrt(self.dpobs.covariances_), rounding_digit))
+        # f_weights = np.round(self.dpobs.weights_, rounding_digit)
+        # g_stds = f_stds
+
+        ''' reverse '''
+        g_means = np.round(self.dpobs.means_, rounding_digit).T[0]
+        g_stds = np.ndarray.flatten(np.round(np.sqrt(self.dpobs.covariances_), rounding_digit))
+        g_weights = np.round(self.dpobs.weights_, rounding_digit)
+        f_stds = g_stds
+
+        prev_mu = copy.copy(g_means)
+        prev_weights = copy.copy(g_weights)
 
         # prev_mu = np.random.random(cls_size)
         # prev_mu = copy.copy(f_means)
@@ -256,12 +264,12 @@ class CausalBound(object):
         prev_weights_list = [prev_weights]
 
         for iter_idx in range(1,iter_opt):
-            curr_mu_solver = self.Bound_Optimization_mu(C,prev_mu_list[iter_idx-1],cls_size,f_means,f_stds,f_weights,g_stds,prev_weights_list[iter_idx-1],opt_mode=opt_mode)
+            curr_mu_solver = self.Bound_Optimization_mu(C,prev_mu_list[iter_idx-1],cls_size,g_means,g_stds,g_weights,f_stds,prev_weights_list[iter_idx-1],opt_mode=opt_mode)
             if opt_mode == 'min':
                 prev_mu_list.append(curr_mu_solver.x - (1/(max(10,cls_size)*iter_idx)) *np.random.random(cls_size))
             else:
                 prev_mu_list.append(curr_mu_solver.x + (1 / (max(10,cls_size)* iter_idx)) * np.random.random(cls_size))
-            curr_weight_solver = self.Bound_Optimization_weights(C,prev_weights_list[iter_idx-1],cls_size,f_means,f_stds,f_weights,g_stds,prev_mu_list[iter_idx],opt_mode=opt_mode)
+            curr_weight_solver = self.Bound_Optimization_weights(C,prev_weights_list[iter_idx-1],cls_size,g_means,g_stds,g_weights,f_stds,prev_mu_list[iter_idx],opt_mode=opt_mode)
             prev_weights_list.append(curr_weight_solver.x)
 
             # Criterion check
