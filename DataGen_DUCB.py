@@ -134,9 +134,12 @@ class DataGen(object):
         #                                     [1] * int(self.num_obs / 2)))
 
     def gen_policy_Y(self, X):
-        coef_zy = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
-        coef_u2y = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
-        coef_u3y = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
+        # coef_zy = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
+        # coef_u2y = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
+        # coef_u3y = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
+        coef_zy = self.coef_zy
+        coef_u2y = self.coef_u2y
+        coef_u3y = self.coef_u3y
 
         U2 = np.matrix(self.U2)
         U3 = np.matrix(self.U3)
@@ -163,13 +166,17 @@ class DataGen(object):
                          (2*np.array(X.T)-1)) + \
                 2*np.sin(np.array(np.power(np.abs(Z * coef_zy), 0.5))) * 1*np.array(2 * np.array(X.T) - 1)
 
-        Y = (Y-min(Y))/(max(Y)-min(Y))
+        Y = np.exp(Y)/(1+np.exp(Y))
         return Y
 
     def gen_Y(self):
         coef_zy = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
         coef_u2y = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
         coef_u3y = np.reshape(1 * np.random.rand(self.dim), (self.dim, 1))
+
+        self.coef_zy = coef_zy
+        self.coef_u2y = coef_u2y
+        self.coef_u3y = coef_u3y
 
         U2 = np.matrix(self.U2)
         U3 = np.matrix(self.U3)
@@ -201,46 +208,23 @@ class DataGen(object):
                          (2*np.array(X_obs.T)-1)) + \
                 2*np.sin(np.array(np.power(np.abs(Z * coef_zy), 0.5))) * 1*np.array(2 * np.array(X_obs.T) - 1)
 
-            # print(Y)
 
-            #
-            # # Y = 100 * ((Y - np.mean(Y, axis=0)) / np.var(Y))
-            #
+
             Y_intv = 10*np.array(np.sin(U2 * coef_u2y)) + \
                      np.array(-1 * np.array(1* np.power(U3 * coef_u3y,1)) * 1*
                               (2*np.array(X_intv.T)-1)) + \
                      2*np.sin(np.array(np.power(np.abs(Z * coef_zy),0.5) )) * 1*np.array(2 * np.array(X_intv.T) - 1)
 
-            # Y_intv = 100 * ((Y_intv - np.mean(Y, axis=0)) / np.var(Y))
 
-            # Y = np.array(np.sin(U2 * coef_u2y)) * \
-            #     np.array(-2 * np.array(np.power(U3 * coef_u3y,2)) +
-            #          +5*np.exp( 3*(2*np.array(X_obs.T) -1)) * (2*np.array(X_obs.T) -1 )) - \
-            #         20 * np.array(2 * np.array(X_obs.T) - 1) + \
-            #     np.array(np.power(np.abs(Z * coef_zy + 1),1))
-            #
-            # print(Y)
-            # Y_intv = np.array(np.sin(U2 * coef_u2y)) * \
-            #          np.array(-2 * np.array(np.power(U3 * coef_u3y,2)) +
-            #               +5*np.exp( 3*(2*np.array(X_intv.T)-1)) * (2*np.array(X_intv.T) -1 )) - \
-            #          20*np.array( 2*np.array(X_intv.T)-1 ) + \
-            #          np.array(np.power(np.abs(Z * coef_zy + 1),1))
-        # self.Y = Y
-        # self.Y_intv = Y_intv
-        self.Y = Y
-        self.Y_intv = Y_intv
-
-        # self.Y = ((Y - min(Y)) / (max(Y)-min(Y)))
-        # self.Y_intv = ((Y_intv - min(Y_intv)) / (max(Y_intv) - min(Y_intv)))
+        self.Y = np.exp(Y)/(np.exp(Y)+1)
+        self.Y_intv = np.exp(Y_intv)/(np.exp(Y_intv) + 1)
 
 
     def structure_data(self):
         X = self.X_obs
         X_intv = self.X_intv
         Y = self.Y
-        Y = (Y-min(Y))/(max(Y)-min(Y))
         Y_intv = self.Y_intv
-        Y_intv = (Y_intv - min(Y_intv)) / (max(Y_intv) - min(Y_intv))
         Z = self.Z
 
         X_obs = np.asarray(X)
