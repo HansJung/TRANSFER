@@ -9,11 +9,38 @@ from CausalBound import CausalBound
 from D_UCB import DUCB
 from JZ_bound import JZ_bound
 
+<<<<<<< HEAD
 # Parameter configuration
 D = 3
 N = 3000
 T = 5000
 seed_num = np.random.randint(10000000)
+=======
+
+D = 100
+N = 20000
+Ns = 20
+T = 5000
+
+Mode = 'crazy'
+>>>>>>> origin/master
+
+seed_num = np.random.randint(10000000)
+# seed_num = 160702
+# seed_num = 12345678
+# seed_num = 2748152
+# seed_num = 110628
+
+
+# seed_num = 7584732 # Case 2, good seednum
+# seed_num = 5647597 # Case 2, good seednum
+# seed_num = 1551761 # for N = 10000, T = 3000
+# seed_num = 7576682 # for N = 20000, T = 5000
+# seed_num = 6597310 # for N = 20000, T = 5000 (Case 3)
+
+# seed_num = 5391860 # Case 3
+
+
 
 # Generating Observation data
 datagen = DataGen(D,N,seed_num)
