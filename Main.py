@@ -8,96 +8,21 @@ from StoExp import StoExp
 from JZ_bound import JZ_bound
 from DUCB import DUCB
 
-
-# DUCB function
-## Compute M
-def Compute_divergence_two(poly_k, poly_j, Z, Xk):
-    pi_k_probs = poly_k.predict_proba(Z)
-    pi_j_probs = poly_j.predict_proba(Z)
-
-    sum_elem = 0
-    N = len(Z)
-    eps = 1e-8
-
-    for idx in range(N):
-        Xk_i = int(Xk[idx])
-        pi_k_idx = pi_k_probs[idx][Xk_i]
-        pi_j_idx = pi_j_probs[idx][Xk_i]
-        div_val = pi_k_idx/(pi_j_idx + eps)
-        sum_elem += div_val * np.exp(div_val - 1) - 1
-    return (sum_elem / N)
-
-def Compute_Mkj(poly_k, poly_j, Z, Xk):
-    div_kj = Compute_divergence_two(poly_k, poly_j, Z, Xk)
-    return np.log(div_kj + 1) + 1
-
-def Matrix_M(policy_list, X_pl_list, Z):
-    N_poly = len(policy_list)
-    poly_idx_iter = list(itertools.product(list(range(N_poly)), list(range(N_poly))))
-    M_mat = np.zeros((N_poly, N_poly))
-    for k, j in poly_idx_iter:
-        # if k != j:
-        poly_k = policy_list[k]
-        poly_j = policy_list[j]
-        Xk = X_pl_list[k]
-        M_mat[k, j] = Compute_Mkj(poly_k, poly_j, Z, Xk)
-    return M_mat
-
-## Compute val
-def indicator(poly_ratio, eps_t, Mkj):
-    ub = 2*np.log(2/eps_t) * Mkj
-    if poly_ratio < ub:
-        return 1
-    else:
-        return 0
-
-def est_predict_proba(poly, zs, xj_s):
-    try:
-        result = poly.predict_proba(zs)[0][xj_s]
-    except:
-        zs = pd.DataFrame(np.matrix(zs))
-        result = poly.predict_proba(zs)[0][xj_s]
-    return result
-
-
-def Poly_ratio_kj(poly_k, poly_j, zs, xj_s):
-    pi_k = est_predict_proba(poly_k,zs,xj_s)
-    pi_j = est_predict_proba(poly_j,zs,xj_s)
-    return pi_k / (pi_j+1e-8)
-
-def compute_val(k, j, s, eps_t, param_set):
-    policy_list, pred_list, Mmat, X_pl_list, Y_pl_list, Z = param_set
-    poly_k = policy_list[k]
-    poly_j = policy_list[j]
-    Mkj = Mmat[k,j]
-
-    Xj = X_pl_list[j]
-    Yj = Y_pl_list[j]
-
-    zs = Z.iloc[s]
-    xjs = int(Xj[s])
-    yjs = Yj.iloc[s]
-
-    poly_ratio_kj = Poly_ratio_kj(poly_k,poly_j,zs,xjs)
-    return (1/Mkj) * yjs * poly_ratio_kj * indicator(poly_ratio_kj, eps_t, Mkj)
-
-# Compute upper bonus
-def upper_bonus(t, k, G, c1 = 16):
-    Gk = G[k]
-    return np.sqrt(c1*t*np.log(t)) / Gk
-
-##########################################
-
 # Parameter configuration
-D = 2
-N = 10000
+D = 1
+N = 5000
 T = int(N/2)
-seed_num = np.random.randint(10000000)
+# seed_num = np.random.randint(10000000)
+seed_num = 7308595 # Case 2
+# seed_num = 3478042 # Case 3
 
-## D=1
-# seed_num = 8002155
-## D=2, N=100000
-# seed_num = 6950624
+# D=1
+## Case 3
+### seed_num = 3478042 // D=1, N=5000, T=N/2
+
+## Case 2
+### seed_num = 1205748 // D=1, N=5000, T=N/2
+### seed_num = 7308595 // D=1, N=5000, T=N/2
 
 
 
@@ -135,21 +60,35 @@ subopt_pl = 1-opt_pl
 opt_Ypi = Y_pis[opt_pl]
 subopt_Ypi = Y_pis[subopt_pl]
 
-
 # Bound construction
 JZ = JZ_bound()
 [L_obslogit, H_obslogit] = JZ.JZ_bounds(obslogit,OBS,D,N)
 [L_obsxgb, H_obsxgb] = JZ.JZ_bounds(obsxgb,OBS,D,N)
 Bdd = [[L_obslogit, H_obslogit],[L_obsxgb, H_obsxgb]]
 
+hx = Bdd[subopt_pl][1]
+if hx < opt_Ypi:
+    case_num = 2
+else:
+    case_num = 3
+
 # DUCB
 ducb = DUCB(policy_list,pred_list,opt_pl,T, X_pl_list,Y_pl_list,Z)
 prob_opt_list,avg_loss_list,num_pull = ducb.conduct_DUCB()
+bdd_prob_opt_list,bdd_avg_loss_list,bdd_num_pull = ducb.conduct_BDUCB(Bdd)
+
+print(case_num)
 
 plt.figure()
-plt.plot(prob_opt_list)
-plt.figure()
-plt.plot(avg_loss_list)
+plt.title("Prob optimal policy")
+plt.plot(prob_opt_list,label="DUCB")
+plt.plot(bdd_prob_opt_list,label="B-DUCB")
+plt.legend()
 
+plt.figure()
+plt.title("Average loss")
+plt.plot(avg_loss_list,label="DUCB")
+plt.plot(bdd_avg_loss_list,label="B-DUCB")
+plt.legend()
 
 
