@@ -111,6 +111,7 @@ class DataGen(object):
 
         Y = part1 + part2 + part3 + part4
         Y = sp.expit(Y)
+        Y = np.round(Y)
         return Y
 
 

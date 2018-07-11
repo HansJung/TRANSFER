@@ -6,7 +6,7 @@ import itertools
 from DataGen import DataGen
 from StoExp import StoExp
 from JZ_bound import JZ_bound
-from scipy.special import lambertw
+from DUCB import DUCB
 
 
 # DUCB function
@@ -86,20 +86,19 @@ def upper_bonus(t, k, G, c1 = 16):
     Gk = G[k]
     return np.sqrt(c1*t*np.log(t)) / Gk
 
-
-
-
-
-
 ##########################################
 
 # Parameter configuration
-D = 1
-N = 20000
-T = 5000
+D = 2
+N = 10000
+T = int(N/2)
 seed_num = np.random.randint(10000000)
-# seed_num = 8002155
+
 ## D=1
+# seed_num = 8002155
+## D=2, N=100000
+# seed_num = 6950624
+
 
 
 # Generating Observation data
@@ -143,84 +142,14 @@ JZ = JZ_bound()
 [L_obsxgb, H_obsxgb] = JZ.JZ_bounds(obsxgb,OBS,D,N)
 Bdd = [[L_obslogit, H_obslogit],[L_obsxgb, H_obsxgb]]
 
+# DUCB
+ducb = DUCB(policy_list,pred_list,opt_pl,T, X_pl_list,Y_pl_list,Z)
+prob_opt_list,avg_loss_list,num_pull = ducb.conduct_DUCB()
 
-# DUCB part
-## Initial (t=K)
-N_poly = len(policy_list)
-Mmat = Matrix_M(policy_list,X_pl_list,Z)
-param_set = [policy_list, pred_list, Mmat, X_pl_list, Y_pl_list, Z]
-
-dictV = dict()
-sumV = dict()
-G = dict()
-u = dict()
-num_pull = dict()
-arm_stored = list()
-
-for k in range(len(policy_list)):
-    dictV[k] = [0]*len(policy_list)
-    sumV[k] = 0
-    G[k] = 0
-    u[k] = 0
-    num_pull[k] = 0
-
-# Initial running
-s = 1
-for k in range(len(policy_list)):
-    for j in range(len(policy_list)):
-        dictV[k][j] = compute_val(k,j,s,1,param_set)
-        sumV[k] += dictV[k][j]
-        G[k] += 1/Mmat[k,j]
-    sumV[k] = sumV[k]/G[k]
-    sk = upper_bonus(1,k,G)
-    u[k] = sumV[k] + 1.5*sk
-a_prev = np.argmax(list(u.values()))
-arm_stored.append(a_prev)
-num_pull[a_prev] += 1
-
-for t in range(len(policy_list)+1, T):
-    eps_t = 2/t
-    for k in range(len(policy_list)):
-        for j in range(len(policy_list)):
-            Mkj = Mmat[k,j]
-            if j == a_prev:
-                dictV[k][j] += compute_val(k,j,t-1,eps_t,param_set)
-                G[k] += 1/Mkj
-            sumV[k] += dictV[k][j]
-        sk = upper_bonus(t,k,G)
-        sumV[k] = sumV[k]/G[k]
-        u[k] = sumV[k] + 1.5*sk
-    a_prev = np.argmax(list(u.values()))
-    arm_stored.append(a_prev)
-    num_pull[a_prev] += 1
+plt.figure()
+plt.plot(prob_opt_list)
+plt.figure()
+plt.plot(avg_loss_list)
 
 
 
-# combi_pl = list(itertools.product(list(range(N_poly)), list(range(N_poly))))
-
-
-
-# for t in range(N_poly, 20):
-#     eps_t = 2/t
-#
-#     # For each k and j
-#     prev_V_list = dict()
-#     max_prev_V = []
-#     for k in range(N_poly):
-#         prev_V_list[k] = []
-#
-#     for k in range(N_poly):
-#         for j in range(N_poly):
-#             C = 2 * np.log(2 / eps_t) * Mmat[k,j]
-#             prev_V_list[k].append(compute_val(s=1,pidx_j = j, pidx_k=k,param_set=param_set, C=C))
-#
-#     for k in range(N_poly):
-#         max_prev_V.append(max(prev_V_list[k]))
-#     prev_pl = np.argmax(max_prev_V)
-#     prev_V = max(max_prev_V)
-#
-#     t += 1
-#     print(compute_V(t-1,prev_V,1,1,prev_pl,param_set, C))
-#
-#     # prev_V = max(prev_V_list)
-#     # compute_V(t,prev_V,j,k,)
