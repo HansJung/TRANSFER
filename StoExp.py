@@ -62,11 +62,6 @@ class StoExp(object):
         ldacls.fit(Z_train, X_train)
         return ldacls
 
-    def RF(self, X, Z):
-        Z_train, Z_test, X_train, X_test = train_test_split(Z, X, test_size=0.1, random_state=0)
-        rfcls = RandomForestRegressor(max_depth=10, random_state=0)
-        rfcls.fit(Z_train, X_train)
-        return rfcls
 
     def XGB(self, X, Z):
         Z_train, Z_test, X_train, X_test = train_test_split(Z, X, test_size=0.1, random_state=0)

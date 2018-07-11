@@ -1,234 +1,225 @@
-from DataGen import DataGen
-from DPFit import DPFit
-from CausalBound import CausalBound
-from UCB import UCB
-import copy
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
+import itertools
 
-''' From DataGen '''
-D = 50
+from DataGen import DataGen
+from StoExp import StoExp
+from JZ_bound import JZ_bound
+from scipy.special import lambertw
+
+
+# DUCB function
+## Compute M
+def Compute_divergence_two(poly_k, poly_j, Z, Xk):
+    pi_k_probs = poly_k.predict_proba(Z)
+    pi_j_probs = poly_j.predict_proba(Z)
+
+    sum_elem = 0
+    N = len(Z)
+    eps = 1e-8
+
+    for idx in range(N):
+        Xk_i = int(Xk[idx])
+        pi_k_idx = pi_k_probs[idx][Xk_i]
+        pi_j_idx = pi_j_probs[idx][Xk_i]
+        div_val = pi_k_idx/(pi_j_idx + eps)
+        sum_elem += div_val * np.exp(div_val - 1) - 1
+    return (sum_elem / N)
+
+def Compute_Mkj(poly_k, poly_j, Z, Xk):
+    div_kj = Compute_divergence_two(poly_k, poly_j, Z, Xk)
+    return np.log(div_kj + 1) + 1
+
+def Matrix_M(policy_list, X_pl_list, Z):
+    N_poly = len(policy_list)
+    poly_idx_iter = list(itertools.product(list(range(N_poly)), list(range(N_poly))))
+    M_mat = np.zeros((N_poly, N_poly))
+    for k, j in poly_idx_iter:
+        # if k != j:
+        poly_k = policy_list[k]
+        poly_j = policy_list[j]
+        Xk = X_pl_list[k]
+        M_mat[k, j] = Compute_Mkj(poly_k, poly_j, Z, Xk)
+    return M_mat
+
+## Compute val
+def indicator(poly_ratio, eps_t, Mkj):
+    ub = 2*np.log(2/eps_t) * Mkj
+    if poly_ratio < ub:
+        return 1
+    else:
+        return 0
+
+def est_predict_proba(poly, zs, xj_s):
+    try:
+        result = poly.predict_proba(zs)[0][xj_s]
+    except:
+        zs = pd.DataFrame(np.matrix(zs))
+        result = poly.predict_proba(zs)[0][xj_s]
+    return result
+
+
+def Poly_ratio_kj(poly_k, poly_j, zs, xj_s):
+    pi_k = est_predict_proba(poly_k,zs,xj_s)
+    pi_j = est_predict_proba(poly_j,zs,xj_s)
+    return pi_k / (pi_j+1e-8)
+
+def compute_val(k, j, s, eps_t, param_set):
+    policy_list, pred_list, Mmat, X_pl_list, Y_pl_list, Z = param_set
+    poly_k = policy_list[k]
+    poly_j = policy_list[j]
+    Mkj = Mmat[k,j]
+
+    Xj = X_pl_list[j]
+    Yj = Y_pl_list[j]
+
+    zs = Z.iloc[s]
+    xjs = int(Xj[s])
+    yjs = Yj.iloc[s]
+
+    poly_ratio_kj = Poly_ratio_kj(poly_k,poly_j,zs,xjs)
+    return (1/Mkj) * yjs * poly_ratio_kj * indicator(poly_ratio_kj, eps_t, Mkj)
+
+# Compute upper bonus
+def upper_bonus(t, k, G, c1 = 16):
+    Gk = G[k]
+    return np.sqrt(c1*t*np.log(t)) / Gk
+
+
+
+
+
+
+##########################################
+
+# Parameter configuration
+D = 5
 N = 10000
-T = int(N/2)
-Ns = 20
+T = 5000
 seed_num = np.random.randint(10000000)
-# seed_num = 2917291
+# seed_num = 1482921
 
 
-# 8030328 is good seed
-Mode = 'crazy'
+# Generating Observation data
+datagen = DataGen(D,N,seed_num)
+OBS = datagen.obs_data()
 
-print('Seed_num', seed_num)
-datagen = DataGen(D,N,Ns,Mode, seed_num)
-datagen.data_gen()
-Obs = datagen.Obs
-Intv = datagen.Intv
+# Externally policy
+stoexp = StoExp(D)
+JZ = JZ_bound()
+[X,Y,Z] = JZ.sepOBS(OBS,D)
 
-plt.figure('Intervention')
-Intv[Intv['X']==0]['Y'].plot(kind='density')
-Intv[Intv['X']==1]['Y'].plot(kind='density')
+obslogit = stoexp.Logit(X,Z)
+obsxgb = stoexp.XGB(X,Z)
 
-plt.figure('Observation')
-Obs[Obs['X']==0]['Y'].plot(kind='density')
-Obs[Obs['X']==1]['Y'].plot(kind='density')
+policy_list = [obslogit,obsxgb]
+
+## Policy data
+poly_obslogit_data = datagen.poly_intv_data(obslogit, Z)
+poly_obsxgb_data = datagen.poly_intv_data(obsxgb, Z)
+X_pl_list = [poly_obslogit_data['X'], poly_obsxgb_data['X']]
+Y_pl_list = [poly_obslogit_data['Y'], poly_obsxgb_data['Y']]
+
+obslogit_pred = obslogit.predict_proba(Z)
+obsxgb_pred = obsxgb.predict_proba(Z)
+pred_list = [obslogit_pred, obsxgb_pred]
+
+### True mean
+Y_obslogit = np.mean(poly_obslogit_data['Y'])
+Y_obsxgb = np.mean(poly_obsxgb_data['Y'])
+Y_pis = [Y_obslogit, Y_obsxgb]
+
+opt_pl = np.argmax([Y_obslogit, Y_obsxgb])
+subopt_pl = 1-opt_pl
+opt_Ypi = Y_pis[opt_pl]
+subopt_Ypi = Y_pis[subopt_pl]
 
 
-# plt.figure()
-
-''' From DPFit '''
-
-iter_opt = 100
-bound_list = []
-bounded_models = []
-weights = []
-C_list = []
-dpobs_list = []
+# Bound construction
+JZ = JZ_bound()
+[L_obslogit, H_obslogit] = JZ.JZ_bounds(obslogit,OBS,D,N)
+[L_obsxgb, H_obsxgb] = JZ.JZ_bounds(obsxgb,OBS,D,N)
+Bdd = [[L_obslogit, H_obslogit],[L_obsxgb, H_obsxgb]]
 
 
+# DUCB part
+## Initial (t=K)
+N_poly = len(policy_list)
+Mmat = Matrix_M(policy_list,X_pl_list,Z)
+param_set = [policy_list, pred_list, Mmat, X_pl_list, Y_pl_list, Z]
 
-for x in [0,1]:
-    init_compo = 100
-    Yobs_x = Obs[Obs['X']==x]['Y']
-    Yintv_x = Intv[Intv['X']==x]['Y']
+dictV = dict()
+sumV = dict()
+G = dict()
+u = dict()
+num_pull = dict()
+arm_stored = list()
 
-    DPFit_intv = DPFit(Yintv_x,init_compo)
-    DPFit_intv.Conduct()
-    dpintv = DPFit_intv.dpgmm
+for k in range(len(policy_list)):
+    dictV[k] = [0]*len(policy_list)
+    sumV[k] = 0
+    G[k] = 0
+    u[k] = 0
+    num_pull[k] = 0
 
-    DPFit_obs = DPFit(Yobs_x, init_compo)
-    DPFit_obs.Conduct()
-    dpobs = DPFit_obs.dpgmm
-    init_compo = sum(1 for x in dpobs.weights_ if x > 1e-2)
-    DPFit_obs = DPFit(Yobs_x, init_compo)
-    DPFit_obs.Conduct()
-    dpobs = DPFit_obs.dpgmm
-    dpobs_list.append(dpobs)
+# Initial running
+s = 1
+for k in range(len(policy_list)):
+    for j in range(len(policy_list)):
+        dictV[k][j] = compute_val(k,j,s,1,param_set)
+        sumV[k] += dictV[k][j]
+        G[k] += 1/Mmat[k,j]
+    sumV[k] = sumV[k]/G[k]
+    sk = upper_bonus(1,k,G)
+    u[k] = sumV[k] + sk
+a_prev = np.argmax(list(u.values()))
+arm_stored.append(a_prev)
+num_pull[a_prev] += 1
 
-    ''' From Causal Bound '''
-    px = len(Obs[Obs['X'] == x])/ N
-    # C =  -np.log(px)
-    C = 1/(8*(px**2))
-    C_list.append(C)
-    CB = CausalBound(dpobs,C)
+for t in range(len(policy_list)+1, T):
+    eps_t = 2/t
+    for k in range(len(policy_list)):
+        for j in range(len(policy_list)):
+            Mkj = Mmat[k,j]
+            if j == a_prev:
+                dictV[k][j] += compute_val(k,j,t-1,eps_t,param_set)
+                G[k] += 1/Mkj
+            sumV[k] += dictV[k][j]
+        sk = upper_bonus(t,k,G)
+        sumV[k] = sumV[k]/G[k]
+        u[k] = sumV[k] + sk
+    a_prev = np.argmax(list(u.values()))
+    arm_stored.append(a_prev)
+    num_pull[a_prev] += 1
 
-    # LB, UB, lower, upper = CB.Solve_Optimization(C, init_compo, iter_opt)
-    # bound_list.append([LB, UB])
-    # bounded_models.append([lower, upper])
 
-    # Arbitrary density
-    if Mode == 'crazy':
-        LB, UB, min_mu_list, max_mu_list, min_weight_list, max_weight_list = CB.Conduct_Optimization(C, init_compo, iter_opt)
-        if x == 0 :
-            X0 = [LB, UB, min_mu_list, max_mu_list, min_weight_list, max_weight_list, C, dpobs, init_compo, dpintv]
-        elif x == 1:
-            X1 = [LB, UB, min_mu_list, max_mu_list, min_weight_list, max_weight_list, C, dpobs, init_compo, dpintv]
-        bound_list.append([LB,UB])
-        # bounded_models.append([lower,upper])
-        # weights.append([lower_weight, upper_weight])
 
-    # Easy density
-    if Mode == 'easy':
-        f_std = np.std(Yintv_x)
-        f_mean = np.mean(Yintv_x)
-        g_std = copy.copy(f_std)
-        LB,UB = CB.Easy_bound(f_mean,f_std,g_std, C)
-        bound_list.append([LB,UB])
+# combi_pl = list(itertools.product(list(range(N_poly)), list(range(N_poly))))
 
-print('')
-print('Observational mean')
-print('X=0',np.mean(Obs[Obs['X']==0]['Y']))
-print('X=1',np.mean(Obs[Obs['X']==1]['Y']))
-print('')
 
-print(bound_list)
-print(np.mean(Intv[Intv['X']==0]['Y']), np.mean(Intv[Intv['X']==1]['Y']))
 
-# #
-# ''' Test Code '''
-# CB = CausalBound(dpobs,C)
-# x0_min_mu_list = X0[2]
-# x0_max_mu_list = X0[3]
-# x1_min_mu_list = X1[2]
-# x1_max_mu_list = X1[3]
+# for t in range(N_poly, 20):
+#     eps_t = 2/t
 #
-# x0_min_weight_list = X0[4]
-# x0_max_weight_list = X0[5]
-# x1_min_weight_list = X1[4]
-# x1_max_weight_list = X1[5]
+#     # For each k and j
+#     prev_V_list = dict()
+#     max_prev_V = []
+#     for k in range(N_poly):
+#         prev_V_list[k] = []
 #
-# C0 = X0[6]
-# C1 = X1[6]
+#     for k in range(N_poly):
+#         for j in range(N_poly):
+#             C = 2 * np.log(2 / eps_t) * Mmat[k,j]
+#             prev_V_list[k].append(compute_val(s=1,pidx_j = j, pidx_k=k,param_set=param_set, C=C))
 #
-# dpobs_x0 = X0[7]
-# dpobs_x1 = X1[7]
+#     for k in range(N_poly):
+#         max_prev_V.append(max(prev_V_list[k]))
+#     prev_pl = np.argmax(max_prev_V)
+#     prev_V = max(max_prev_V)
 #
-# cls_x0 = X0[8]
-# cls_x1 = X1[8]
+#     t += 1
+#     print(compute_V(t-1,prev_V,1,1,prev_pl,param_set, C))
 #
-# dpintv_x0 = X0[9]
-# dpintv_x1 = X0[9]
-#
-# f_means_x0 = dpobs_x0.means_.T[0]
-# f_stds_x0 = np.ndarray.flatten(np.round(np.sqrt(dpobs_x0.covariances_), 12))
-# f_weights_x0 = dpobs_x0.weights_
-#
-# f_means_x1 = dpobs_x1.means_.T[0]
-# f_stds_x1 = np.ndarray.flatten(np.round(np.sqrt(dpobs_x1.covariances_), 12))
-# f_weights_x1 = dpobs_x1.weights_
-#
-# print('x0_lower Const', CB.KL_GMM(f_weights_x0,x0_min_weight_list[len(x0_min_weight_list)-1],
-#                                   f_means_x0,x0_min_mu_list[len(x0_min_mu_list)-1],f_stds_x0,f_stds_x0), C0)
-#
-# print('x0_upper Const', CB.KL_GMM(f_weights_x0,x0_max_weight_list[len(x0_max_weight_list)-1],
-#                                   f_means_x0,x0_max_mu_list[len(x0_max_mu_list)-1],f_stds_x0,f_stds_x0), C0)
-#
-# print('x1_lower Const', CB.KL_GMM(f_weights_x1,x1_min_weight_list[len(x1_min_weight_list)-1],
-#                                   f_means_x1,x1_min_mu_list[len(x1_min_mu_list)-1],f_stds_x1,f_stds_x1), C1)
-#
-# print('x1_upper Const', CB.KL_GMM(f_weights_x1,x1_max_weight_list[len(x1_max_weight_list)-1],
-#                                   f_means_x1,x1_max_mu_list[len(x1_max_mu_list)-1],f_stds_x1,f_stds_x1), C1)
-#
-#
-#
-''' From UCB '''
-K = 1
-ucb = UCB(bound_list,Intv, K, T)
-[UCB_result, BUCB_result] = ucb.Bandit_Run()
-prob_opt, cum_regret, UCB_list, Arm, X_hat, Na_T = UCB_result
-prob_opt_B, cum_regret_B, UCB_list_B, UCB_hat_list_B, Arm_B, X_hat_B, Na_T_B = BUCB_result
-
-print(prob_opt)
-print(prob_opt_B)
-
-print(cum_regret)
-print(cum_regret_B)
-
-# font = {'family' : 'normal',
-#         'weight' : 'bold',
-#         'size'   : 22}
-
-#
-plt.figure()
-plt.rc('font', size=40)          # controls default text sizes
-plt.rc('xtick', labelsize=25)    # fontsize of the tick labels
-plt.rc('ytick', labelsize=25)    # fontsize of the tick labels
-plt.rc('legend', fontsize=30)    # legend fontsize
-
-plt.title('Case 3')
-plt.ylabel('Cumulative regret')
-plt.xlabel('Trials')
-cum_UCB = plt.plot(cum_regret,label='UCB')
-cum_BUCB = plt.plot(cum_regret_B,label='B-UCB')
-plt.setp(cum_UCB, linewidth=5)       # set both to dashed
-plt.setp(cum_BUCB, linewidth=5)       # set both to dashed
-plt.legend()
-
-# plt.figure()
-# plt.title('Prob_opt_list')
-# plt.plot(prob_opt,label='UCB')
-# plt.plot(prob_opt_B,label='B-UCB')
-# plt.legend()
-# #
-#
-# # if np.mean(Intv[Intv['X']==0]['Y']) > np.mean(Intv[Intv['X']==1]['Y']):
-# #     opt_arm = 0
-# # else:
-# #     opt_arm = 1
-# #
-# # color_box = ['r','b']
-# # choice_box = []
-# #
-# # cur_num = -1
-# # for idx in range(len(UCB_list_B)):
-# #     prev_num = cur_num
-# #     choice_arm = Arm_B
-# #     ucb_cb = max(UCB_list_B[idx])
-# #     ucb_hat_chosen = min(UCB_hat_list_B[idx])
-# #
-# #     if max(UCB_list_B[idx]) in UCB_hat_list_B[idx]:
-# #         # print('UCB')
-# #         choice_box.append(1)
-# #         cur_num = 1
-# #
-# #     else:
-# #         # print('CB')
-# #         choice_box.append(0)
-# #         cur_num = 0
-# #
-# #     if idx > 0 and prev_num != cur_num:
-# #         rem_num = idx
-# #         rem_arm = prev_num
-# #
-# # #
-# # # #
-# # # color_list = [color_box[idx] for idx in choice_box]
-# # # plt.figure()
-# # # plt.title('Illustration: which bounds affect choice of arms')
-# # # phase1 = plt.scatter(range(rem_num),[1]*rem_num,c=color_list[:rem_num])
-# # # phase2 = plt.scatter(range(rem_num, len(choice_box)),[1]*(len(choice_box) - rem_num),c=color_list[rem_num:])
-# # # plt.yticks([])
-# # # if rem_arm == 0:
-# # #     plt.legend([phase1, phase2],['IT-bound','UCB'])
-# # # else:
-# # #     plt.legend([phase1, phase2], ['IT-bound', 'CB'])
-#
+#     # prev_V = max(prev_V_list)
+#     # compute_V(t,prev_V,j,k,)
