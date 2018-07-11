@@ -94,11 +94,12 @@ def upper_bonus(t, k, G, c1 = 16):
 ##########################################
 
 # Parameter configuration
-D = 5
-N = 10000
+D = 1
+N = 20000
 T = 5000
 seed_num = np.random.randint(10000000)
-# seed_num = 1482921
+# seed_num = 8002155
+## D=1
 
 
 # Generating Observation data
@@ -110,7 +111,7 @@ stoexp = StoExp(D)
 JZ = JZ_bound()
 [X,Y,Z] = JZ.sepOBS(OBS,D)
 
-obslogit = stoexp.Logit(X,Z)
+obslogit = stoexp.Logit(1-X,Z)
 obsxgb = stoexp.XGB(X,Z)
 
 policy_list = [obslogit,obsxgb]
@@ -172,7 +173,7 @@ for k in range(len(policy_list)):
         G[k] += 1/Mmat[k,j]
     sumV[k] = sumV[k]/G[k]
     sk = upper_bonus(1,k,G)
-    u[k] = sumV[k] + sk
+    u[k] = sumV[k] + 1.5*sk
 a_prev = np.argmax(list(u.values()))
 arm_stored.append(a_prev)
 num_pull[a_prev] += 1
@@ -188,7 +189,7 @@ for t in range(len(policy_list)+1, T):
             sumV[k] += dictV[k][j]
         sk = upper_bonus(t,k,G)
         sumV[k] = sumV[k]/G[k]
-        u[k] = sumV[k] + sk
+        u[k] = sumV[k] + 1.5*sk
     a_prev = np.argmax(list(u.values()))
     arm_stored.append(a_prev)
     num_pull[a_prev] += 1
