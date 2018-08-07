@@ -3,7 +3,6 @@ from sklearn import preprocessing
 import numpy as np
 import copy
 
-# Binarize
 def IST_LabelEncoder(IST, ColName):
     le = preprocessing.LabelEncoder()
 
@@ -35,7 +34,8 @@ def ContNormalization(df,colname):
     return df_col
 
 def ObsEffect(df):
-    return [ np.mean(df[(df['RXASP'] == 0)]['FDEAD']), np.mean(df[(df['RXASP'] == 1)]['FDEAD']) ]
+    return [np.mean(df[(df['RXASP'] == 0)]['Y']), np.mean(df[(df['RXASP'] == 1)]['Y'])]
+    # return [ np.mean(df[(df['RXASP'] == 0)]['FDEAD']), np.mean(df[(df['RXASP'] == 1)]['FDEAD']) ]
 
 
 # Data load
@@ -48,7 +48,7 @@ chosen_variables = ['SEX','AGE','RSLEEP','RATRIAL','RCONSC','RDELAY',
                     'RVISINF','RHEP24','RASP3','RSBP',
                     'RDEF1','RDEF2','RDEF3','RDEF4','RDEF5','RDEF6','RDEF7','RDEF8',
                     'STYPE','RXASP','RXHEP',
-                    'FDEAD', 'EXPD14'
+                    'FDEAD', 'EXPD14', 'EXPD6','EXPDD'
                     ]
 
 # Pre-select
@@ -71,7 +71,8 @@ discrete_variables = ['SEX','RSLEEP','RATRIAL','RCONSC',
 for disc_val in discrete_variables:
     IST = IST_LabelEncoder(IST,disc_val)
 
-outcome = IST['FDEAD'] - IST['EXPD14']
+outcome = 1*IST['FDEAD'] - 1*IST['EXPD6']
+outcome = (outcome + 1)/2
 outcome = pd.DataFrame({'Y':outcome})
 IST = pd.concat([IST,outcome],axis=1)
 
@@ -100,17 +101,17 @@ N = len(IST)
 age_coef = 0.05
 bp_coef = 0.05
 delay_coef = 0.05
-sex_coef = 0.05
+sex_coef = 0.00
 atl_coef = 0.3
-slp_coef = 0.2
+slp_coef = 0.25
 inf_coef = 0.3
 
 coefs = [age_coef, bp_coef, delay_coef, sex_coef, atl_coef, slp_coef, inf_coef]
 
 sample_list = []
-baseline_prob = 0.05
-weighted_prob = 0.55
-treatment_prob = 0.4
+baseline_prob = 0.0
+weighted_prob = 0.5
+treatment_prob = 0.5
 
 for idx in range(N):
     elem = IST.iloc[idx]
@@ -141,10 +142,27 @@ Sample = pd.DataFrame(sample_list)
 # Sample = Sample[Sample['EXPD14'] < prob_death_p90]
 
 
-
 print(ObsEffect(IST))
 print(ObsEffect(Sample))
 print([np.mean(IST['RXASP']),np.mean(Sample['RXASP'])])
 print(len(Sample))
 
+# If sampling rule is good enough, then hide some Z.
+selected_covariates = ['AGE','RATRIAL','RVISINF','RXASP','Y']
 
+## Resulting dataset
+EXP = IST[selected_covariates]
+OBS = Sample[selected_covariates]
+
+# Check Case 2
+Lx0 = np.mean(OBS[OBS['RXASP']==0]['Y']) * len(OBS[OBS['RXASP']==0])/len(OBS)
+Lx1 = np.mean(OBS[OBS['RXASP']==1]['Y']) * len(OBS[OBS['RXASP']==1])/len(OBS)
+
+Hx0 = Lx0 + len(OBS[OBS['RXASP']==1])/len(OBS)
+Hx1 = Lx1 + len(OBS[OBS['RXASP']==0])/len(OBS)
+
+Ux0 = np.mean(EXP[EXP['RXASP']==0]['Y'])
+Ux1 = np.mean(EXP[EXP['RXASP']==1]['Y'])
+
+print([Lx0,Ux0,Hx0])
+print([Lx1,Ux1,Hx1])
