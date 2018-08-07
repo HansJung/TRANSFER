@@ -39,7 +39,7 @@ def ObsEffect(df):
 
 
 # Data load
-np.random.seed(1)
+np.random.seed(123)
 IST = pd.read_csv('IST.csv')
 
 # Randomization data selection
@@ -108,8 +108,8 @@ inf_coef = 0.3
 coefs = [age_coef, bp_coef, delay_coef, sex_coef, atl_coef, slp_coef, inf_coef]
 
 sample_list = []
-baseline_prob = 0.0
-weighted_prob = 0.6
+baseline_prob = 0.05
+weighted_prob = 0.55
 treatment_prob = 0.4
 
 for idx in range(N):
