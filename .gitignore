@@ -103,3 +103,8 @@ ENV/
 
 OLD
 Temp
+*.zip
+
+*.png
+
+*.csv

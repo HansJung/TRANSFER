@@ -11,9 +11,10 @@ D = 1 # Dimension of Z
 N = 5000 # Number of samples
 T = int(N/2) # Round of bandit simulation
 
-seed_num = 7308595 # Case 2
+# seed_num = 7308595 # Case 2
 # seed_num = 3478042 # Case 3
-# seed_num = np.random.randint(10000000)
+# seed_num = 1853270 # Case 3
+seed_num = np.random.randint(10000000)
 
 ''' 
 Configuration for Case setting 
