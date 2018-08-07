@@ -39,7 +39,7 @@ def ObsEffect(df):
 
 
 # Data load
-np.random.seed(1)
+np.random.seed(12345)
 IST = pd.read_csv('IST.csv')
 
 # Randomization data selection
@@ -97,19 +97,20 @@ Delay_norm = ContNormalization(IST_orig,'RDELAY')
 ### Sampling formula
 # Prob = 0.5 + 0.5( 0.1*SEX + 0.1*AGE + 0.2*ATL + 0.2*RSL + 0.2*INF + 0.2*BP )
 N = len(IST)
-age_coef = 0.1
+age_coef = 0.05
 bp_coef = 0.05
 delay_coef = 0.05
 sex_coef = 0.05
-atl_coef = 0.25
-slp_coef = 0.25
-inf_coef = 0.25
+atl_coef = 0.3
+slp_coef = 0.2
+inf_coef = 0.3
 
 coefs = [age_coef, bp_coef, delay_coef, sex_coef, atl_coef, slp_coef, inf_coef]
 
 sample_list = []
-baseline_prob = 0.4
-weighted_prob = 0.6
+baseline_prob = 0.1
+weighted_prob = 0.7
+treatment_prob = 0.2
 
 for idx in range(N):
     elem = IST.iloc[idx]
@@ -122,20 +123,28 @@ for idx in range(N):
     elem_SLP = elem['RSLEEP']
     elem_INF = elem['RVISINF']
 
+    elem_treat = elem['RXASP']
+
     elems = [elem_age,elem_BP, elem_DELAY, elem_sex, elem_ATL, elem_SLP, elem_INF]
 
-    prob = baseline_prob + weighted_prob * np.dot(coefs, elems)
+    prob = baseline_prob + weighted_prob * np.dot(coefs, elems) + treatment_prob * (1-elem_treat)
     if np.random.binomial(1, prob) == 0:
         continue
     else:
         sample_list.append(elem)
 
 Sample = pd.DataFrame(sample_list)
-prob_death_p20 = list(Sample['EXPD14'].quantile([0.2]))[0]
-Sample = Sample[Sample['EXPD14'] > prob_death_p20]
+# prob_death_p10 = list(Sample['EXPD14'].quantile([0.2]))[0]
+# Sample = Sample[Sample['EXPD14'] > prob_death_p10]
+
+# prob_death_p90 = list(Sample['EXPD14'].quantile([0.9]))[0]
+# Sample = Sample[Sample['EXPD14'] < prob_death_p90]
+
+
 
 print(ObsEffect(IST))
 print(ObsEffect(Sample))
-
+print([np.mean(IST['RXASP']),np.mean(Sample['RXASP'])])
+print(len(Sample))
 
 
