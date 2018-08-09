@@ -2,6 +2,7 @@ import pandas as pd
 from sklearn import preprocessing
 import numpy as np
 import copy
+from scipy import stats
 
 def IST_LabelEncoder(IST, ColName):
     le = preprocessing.LabelEncoder()
@@ -26,55 +27,99 @@ def ThreeCategorize(df):
     return df_copy
 
 def LabelRecover(df, df_orig, colname):
-    print( pd.concat([df[colname],df_orig[colname]],axis=1) )
+    print(pd.unique(df[colname]))
+    print(pd.unique(df_orig[colname]))
+    # print( pd.concat([df[colname],df_orig[colname]],axis=1) )
 
 def ContNormalization(df,colname):
     df_col = copy.copy(df[colname])
     df_col = (df_col - min(df_col))/(max(df_col) - min(df_col))
     return df_col
 
-def ObsEffect(df):
-    return [np.mean(df[(df['RXASP'] == 0)]['Y']), np.mean(df[(df['RXASP'] == 1)]['Y'])]
-    # return [ np.mean(df[(df['RXASP'] == 0)]['FDEAD']), np.mean(df[(df['RXASP'] == 1)]['FDEAD']) ]
+def ObsEffect(df,outcome):
+    return [np.mean(df[(df['RXASP'] == 0)][outcome]), np.mean(df[(df['RXASP'] == 1)][outcome])]
 
+def diffEffect(df,outcome):
+    Yx0, Yx1 = ObsEffect(df,outcome)
+    return(np.abs(Yx0-Yx1))
+
+def SigTest(df,X,Y):
+    result = stats.ttest_ind(df[df[X] == 0][Y], df[df[X] == 1][Y], equal_var=False)
+    return result.pvalue
+
+def 
 
 # Data load
-np.random.seed(123)
 IST = pd.read_csv('IST.csv')
 
-# Randomization data selection
-list(IST.columns.values)
-chosen_variables = ['SEX','AGE','RSLEEP','RATRIAL','RCONSC','RDELAY',
-                    'RVISINF','RHEP24','RASP3','RSBP',
-                    'RDEF1','RDEF2','RDEF3','RDEF4','RDEF5','RDEF6','RDEF7','RDEF8',
-                    'STYPE','RXASP','RXHEP',
-                    'FDEAD', 'EXPD14', 'EXPD6','EXPDD'
-                    ]
-
-# Pre-select
-## If RATRIAL is empty, then none
-IST = IST[chosen_variables]
+# Select necessary columns
+## If No Atrial information, then exclude those
 IST = IST.loc[pd.isnull(IST['RATRIAL']) == False]
-IST = IST.loc[(IST['FDEAD'] != 'U')]
-IST = IST.dropna()
+## If No dead informatino, then exlucde
+# IST = IST.loc[(IST['FDEAD'] != 'U')]
+## If No recover informatino, then exlucde
+IST = IST.loc[(IST['FRECOVER'])!='U']
+## Patients without taking Heparin, b/c, we are only interested in Aspirin
+# IST = IST.loc[(IST['RXHEP'] == 'N')]
+# ## Patients dead from other causes are exlucded.
+IST = IST.loc[(IST['DEAD7'] == 0) & (IST['DEAD8']==0)]
+## Patients only complied
+# IST = IST.loc[(IST['CMPLASP'] == 'Y')]
 
+chosen_variables = ['SEX','AGE',
+                    'RSLEEP','RATRIAL','RCONSC','RDELAY','RVISINF','RSBP',
+                    'RXASP',
+                    'FRECOVER',
+                    'EXPDD'
+                    ]
+IST = IST[chosen_variables]
+IST = IST.dropna()
 IST_orig = copy.copy(IST)
 
 ## Binarize
 discrete_variables = ['SEX','RSLEEP','RATRIAL','RCONSC',
-                    'RVISINF','RHEP24','RASP3',
-                    'RDEF1','RDEF2','RDEF3','RDEF4','RDEF5','RDEF6','RDEF7','RDEF8',
-                    'STYPE','RXASP','RXHEP',
-                    'FDEAD'
+                    'RVISINF','RXASP',
+                    'FRECOVER'
                     ]
 
 for disc_val in discrete_variables:
     IST = IST_LabelEncoder(IST,disc_val)
 
-outcome = 1*IST['FDEAD'] - 1*IST['EXPD6']
+# outcome = 1*IST['FRECOVER'] - (1-1*IST['EXP14'])
+outcome = 1*IST['FRECOVER'] - (1-1*IST['EXPDD'])
 outcome = (outcome + 1)/2
 outcome = pd.DataFrame({'Y':outcome})
 IST = pd.concat([IST,outcome],axis=1)
+
+# Random sampling for EXP generation
+N = len(IST)
+sample_N = 10000
+prev_sig = 10
+iter_idx = 0
+possible_case = 2**32-1
+remember_seed = 0
+
+# while 1:
+#     iter_idx += 1
+#     seed_num = np.random.randint(possible_case)
+#     np.random.seed(seed_num)
+#     Sample = IST.sample(n=sample_N)
+#     sig_sample = SigTest(Sample,'RXASP','Y')
+#     if sig_sample < prev_sig:
+#         prev_sig = sig_sample
+#         remember_seed = seed_num
+#
+#     if iter_idx%500 == 0:
+#         print(seed_num, sig_sample, prev_sig, remember_seed, iter_idx)
+#
+#     if sig_sample < 0.01:
+#         remember_seed = seed_num
+#         break
+#
+#     if iter_idx > possible_case:
+#         print("all investigated")
+#         break
+remember_seed = 3141693719
 
 # Discretize the continuous variable
 continuous_variable = ['RSBP','AGE','RDELAY'] # list(set(chosen_variables) - set(discrete_variables))
@@ -85,6 +130,39 @@ IST['RDELAY'] = ThreeCategorize(IST['RDELAY'])
 AGE_norm = ContNormalization(IST_orig,'AGE')
 BP_norm = ContNormalization(IST_orig,'RSBP')
 Delay_norm = ContNormalization(IST_orig,'RDELAY')
+
+np.random.seed(remember_seed)
+# remember_seed = 931166988
+# remember_seed = 3141693719
+EXP = IST.sample(n=sample_N)
+
+# iter_idx = 0
+# obs_N = round(sample_N / 10)
+# remember_seed = 0
+# prev_diff = 0
+# while 1:
+#     iter_idx += 1
+#     seed_num = np.random.randint(possible_case)
+#     np.random.seed(seed_num)
+#     Sample = EXP.sample(n=obs_N)
+#     Yx0 = Sample[Sample['RXASP']==0]['Y']
+#     Yx1 = Sample[Sample['RXASP']==1]['Y']
+#     Ex0 = np.mean(Yx0)
+#     Ex1 = np.mean(Yx1)
+#
+#     if (len(Yx0) < obs_N/10 or len(Yx1) < obs_N/10) and Ex0 > Ex1:
+#         remember_seed = seed_num
+#         break
+#
+#     if iter_idx%500 == 0:
+#         print(seed_num, remember_seed,Ex0 - Ex1, iter_idx)
+#
+#     if iter_idx > possible_case:
+#         print("all investigated")
+#         break
+
+
+
 
 # Sampling rule
 ## Male the higher,
@@ -97,44 +175,61 @@ Delay_norm = ContNormalization(IST_orig,'RDELAY')
 
 ### Sampling formula
 # Prob = 0.5 + 0.5( 0.1*SEX + 0.1*AGE + 0.2*ATL + 0.2*RSL + 0.2*INF + 0.2*BP )
-N = len(IST)
-age_coef = 0.05
-bp_coef = 0.05
-delay_coef = 0.05
-sex_coef = 0.00
-atl_coef = 0.3
-slp_coef = 0.25
-inf_coef = 0.3
+age_coef = 0
+bp_coef = 0
+delay_coef = 0
+sex_coef = 0
+atl_coef = 0.4
+slp_coef = 0.1
+inf_coef = 0.5
 
 coefs = [age_coef, bp_coef, delay_coef, sex_coef, atl_coef, slp_coef, inf_coef]
 
 sample_list = []
-baseline_prob = 0.0
-weighted_prob = 0.5
-treatment_prob = 0.5
+baseline_prob = 0.4
+weighted_prob = 0.4
+EXPD_prob = 0.2
 
-for idx in range(N):
-    elem = IST.iloc[idx]
+np.random.seed(1)
+for idx in range(len(EXP)):
+    elem = EXP.iloc[idx]
 
-    elem_age = AGE_norm.iloc[idx]
-    elem_BP = BP_norm.iloc[idx]
-    elem_DELAY = Delay_norm.iloc[idx]
+    elem_age = elem['AGE']/2
+    elem_BP = elem['RSBP']/2
+    elem_DELAY = elem['RDELAY']/2
     elem_sex = elem['SEX']
     elem_ATL = elem['RATRIAL']
     elem_SLP = elem['RSLEEP']
     elem_INF = elem['RVISINF']
 
+    elem_EXPD = elem['EXPDD']
     elem_treat = elem['RXASP']
 
     elems = [elem_age,elem_BP, elem_DELAY, elem_sex, elem_ATL, elem_SLP, elem_INF]
 
-    prob = baseline_prob + weighted_prob * np.dot(coefs, elems) + treatment_prob * (1-elem_treat)
-    if np.random.binomial(1, prob) == 0:
+    if elem_treat == 0:
+        if elem_EXPD < 0.7:
+            prob = 0.1
+        else:
+            prob = 0.9
+    else:
+        if elem_EXPD < 0.7:
+            prob = 0.9
+        else:
+            prob = 0.1
+
+    # prob = baseline_prob + \
+    #        weighted_prob * (1-np.dot(coefs, elems)) + \
+    #        EXPD_prob * (1-elem_EXPD)
+
+    if np.random.binomial(1, 0.05 * prob + 0.95*(1-elem_treat)) == 0:
         continue
     else:
         sample_list.append(elem)
 
-Sample = pd.DataFrame(sample_list)
+OBS = pd.DataFrame(sample_list)
+print(ObsEffect(EXP,'Y'))
+print(ObsEffect(OBS,'Y'))
 # prob_death_p10 = list(Sample['EXPD14'].quantile([0.2]))[0]
 # Sample = Sample[Sample['EXPD14'] > prob_death_p10]
 
@@ -142,27 +237,38 @@ Sample = pd.DataFrame(sample_list)
 # Sample = Sample[Sample['EXPD14'] < prob_death_p90]
 
 
-print(ObsEffect(IST))
-print(ObsEffect(Sample))
-print([np.mean(IST['RXASP']),np.mean(Sample['RXASP'])])
-print(len(Sample))
+# print(ObsEffect(IST,'Y'))
+# print(ObsEffect(Sample,'Y'))
+# print()
+# print(ObsEffect(IST,'FRECOVER'))
+# print(ObsEffect(Sample,'FRECOVER'))
+# print()
+#
+# print([np.mean(IST['RXASP']),np.mean(Sample['RXASP'])])
+# print(len(Sample))
 
 # If sampling rule is good enough, then hide some Z.
 selected_covariates = ['AGE','RATRIAL','RVISINF','RXASP','Y']
 
 ## Resulting dataset
-EXP = IST[selected_covariates]
-OBS = Sample[selected_covariates]
+EXP = EXP[selected_covariates]
+OBS = OBS[selected_covariates]
 
 # Check Case 2
-Lx0 = np.mean(OBS[OBS['RXASP']==0]['Y']) * len(OBS[OBS['RXASP']==0])/len(OBS)
-Lx1 = np.mean(OBS[OBS['RXASP']==1]['Y']) * len(OBS[OBS['RXASP']==1])/len(OBS)
+Lx0 = np.mean((OBS['RXASP']==0) * OBS['Y'])
+Lx1 = np.mean((OBS['RXASP']==1) * OBS['Y'])
 
-Hx0 = Lx0 + len(OBS[OBS['RXASP']==1])/len(OBS)
-Hx1 = Lx1 + len(OBS[OBS['RXASP']==0])/len(OBS)
+Hx0 = Lx0 + np.mean((OBS['RXASP']==1))
+Hx1 = Lx1 + np.mean((OBS['RXASP']==0))
 
+# Lx0 = np.mean(OBS[OBS['RXASP']==0]['Y']) * len(OBS[OBS['RXASP']==0])/len(OBS)
+# Lx1 = np.mean(OBS[OBS['RXASP']==1]['Y']) * len(OBS[OBS['RXASP']==1])/len(OBS)
+#
+# Hx0 = Lx0 + len(OBS[OBS['RXASP']==1])/len(OBS)
+# Hx1 = Lx1 + len(OBS[OBS['RXASP']==0])/len(OBS)
+#
 Ux0 = np.mean(EXP[EXP['RXASP']==0]['Y'])
 Ux1 = np.mean(EXP[EXP['RXASP']==1]['Y'])
-
+#
 print([Lx0,Ux0,Hx0])
 print([Lx1,Ux1,Hx1])
