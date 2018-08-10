@@ -1,22 +1,24 @@
-import numpy as np
-import pandas as pd
 from UCB import UCB
 from KLUCB import KLUCB
-import Sim_GenData
+import GenData_IST
 import matplotlib.pyplot as plt
 
 X = 'RXASP'
 K = 2
-T = 4500
+T = 5500
 
-EXP,OBS = Sim_GenData.RunGenData()
-LB,HB = Sim_GenData.ComputeBound(OBS,X)
+EXP,OBS = GenData_IST.RunGenData()
+print(GenData_IST.QualityCheck(EXP,OBS,X))
+print(GenData_IST.ObsEffect(EXP,'Y'))
+print(GenData_IST.ObsEffect(OBS,'Y'))
+
+LB,HB = GenData_IST.ComputeBound(OBS,X)
 lx0,lx1 = LB
 hx0,hx1 = HB
 bound_list = [[lx0,hx0],[lx1,hx1]]
 
-EXP = Sim_GenData.ChangeRXASPtoX(EXP)
-OBS = Sim_GenData.ChangeRXASPtoX(OBS)
+EXP = GenData_IST.ChangeRXASPtoX(EXP)
+OBS = GenData_IST.ChangeRXASPtoX(OBS)
 ucb = UCB(bound_list,EXP,K,T)
 klucb = KLUCB(bound_list,EXP,K,T)
 

@@ -205,28 +205,25 @@ def ChangeRXASPtoX(df,idx_X=3):
     df.columns = df_colnames
     return df
 
-def RunGenData():
+def RunGenData(sample_N=12000, remember_seed = 1444260861):
     # Data load
     IST = pd.read_csv('IST.csv')
-    X = 'RXASP'
-
     IST = ReduceIST(IST)
 
     IST = IndexifyDisc(IST)
     IST = ContToDisc(IST)
 
-    EXP = GenEXP(IST)
-    OBS = GenOBS(EXP)
+    # remember_seed = SeedFinding(IST,sample_N=12000, alpha=0.01)
 
-    # print(ObsEffect(EXP, 'Y'))
-    # print(ObsEffect(OBS, 'Y'))
+    EXP = GenEXP(IST,sample_N,remember_seed)
+    OBS = GenOBS(EXP)
 
     EXP, OBS = HideCovarOBS(EXP, OBS)
     # EXP = ChangeRXASPtoX(EXP)
     # OBS = ChangeRXASPtoX(OBS)
     return [EXP,OBS]
 
-def QualityCheck(OBS,EXP,X):
+def QualityCheck(EXP,OBS,X):
     LB, HB = ComputeBound(OBS, X)
     U = GroundTruth(EXP, X)
     TF_Case2 = CheckCase2(HB, U)
@@ -239,6 +236,8 @@ def QualityCheck(OBS,EXP,X):
     print([lx1, Ux1, hx1])
     return(TF_Case2)
 
+if __name__ == "__main__":
+    EXP,OBS = RunGenData()
 
 
 
