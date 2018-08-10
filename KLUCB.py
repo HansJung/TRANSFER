@@ -1,7 +1,8 @@
 import numpy as np
 import copy
+from scipy.optimize import minimize
 
-class UCB(object):
+class KLUCB(object):
     def __init__(self, bound_list, Intv, K, T):
         self.K = K
         self.bdd_list = bound_list
@@ -49,10 +50,41 @@ class UCB(object):
 
         return new_arm, LB_arm, UB_arm, u_list
 
+
     def Pull_Receive(self, at, Na_T):
         return list(self.Intv[self.Intv['X'] == at]['Y'])[Na_T[at]]
 
-    def UCB(self, arm_list,u_list, K):
+    def BinoKL(self, mu_hat, mu):
+        return mu_hat * np.log(mu_hat / mu) + (1 - mu_hat) * np.log((1 - mu_hat) / (1 - mu))
+
+    def ConstFun(self,mu_hat, mu, ub):
+        ConstVal = -1 * (self.BinoKL(mu_hat, mu) - ub)
+        if ConstVal > 0:
+            return True
+        else:
+            return False
+
+    def MaxKL(self,mu_hat, ft,NaT):
+        ub = ft/NaT
+        ObjFun = lambda mu: -1 * self.BinoKL(mu_hat, mu)
+        ObjFunDer = lambda mu: mu_hat / mu - (1 - mu_hat) * (1 / (1 - mu))
+        ObjFunHess = lambda mu: -mu_hat / (mu ** 2) - (1 - mu_hat) / ((1 - mu) ** 2)
+
+        constraints = {'type': 'ineq',
+                       'fun': lambda mu: -1 * (self.BinoKL(mu_hat, mu) - ub),
+                       'jac': lambda mu: mu_hat / mu - (1 - mu_hat) * (1 / (1 - mu))
+                       }
+        while 1:
+            x0 = np.random.uniform(low=mu_hat, high=1, size=1)
+            if self.ConstFun(mu_hat, x0, ub) == True:
+                break
+        bound = tuple([tuple([0, 1])])
+        res = minimize(ObjFun, [x0], method='SLSQP', jac=ObjFunDer, hess=ObjFunHess, constraints=constraints,
+                       bounds=bound)
+        return res.x[0]
+
+
+    def KLUCB(self, arm_list,u_list, K):
         # LB_arm = self.LB_arm
         # UB_arm = self.UB_arm
         # arm_list = self.arm_list
@@ -60,6 +92,7 @@ class UCB(object):
 
         # arm_list, LB_arm, UB_arm, u_list = self.Arm_Cut()
 
+        ft = lambda x: np.log(x) + 3 * np.log(np.log(x))
         if len(arm_list) == 1:
             print("All cut")
             return arm_list
@@ -97,19 +130,18 @@ class UCB(object):
 
             # Run!
             UCB_list = []
+
+            # data_collection = {'Arm':Arm, 'Reward':Reward, 'Cum_regret': cum_regret, 'Prob_opt':prob_opt }
             X_hat_list = []
             for t in range(K*len(arm_list), self.T):
                 UB_list = []
                 X_hat_arm = []
                 for a in arm_list:
                     # standard UCB
-                    x_hat = np.mean(Reward_arm[a])
-                    X_hat_arm.append(x_hat)
-                    upper_a = np.sqrt( (3 * np.log(t)) / (2 * Na_T[a]))
-                    UB_a = x_hat + upper_a
+                    mu_hat = np.mean(Reward_arm[a])
+                    UB_a = self.MaxKL(mu_hat,ft(t),Na_T[a])
                     UB_list.append(UB_a)
                 UCB_list.append(UB_list)
-                X_hat_list.append(X_hat_arm)
 
                 at = UB_list.index(max(UB_list))
                 Arm.append(at)
@@ -126,20 +158,19 @@ class UCB(object):
                 cum_regret_list.append(cum_regret)
             return prob_opt_list, cum_regret_list, UCB_list, Arm, X_hat_list, Na_T
 
-    def B_UCB(self, K):
-        arm_list, LB_arm, UB_arm, u_list = self.Arm_Cut()
+    def B_KLUCB(self, arm_list,u_list, K):
+        # LB_arm = self.LB_arm
+        # UB_arm = self.UB_arm
+        # arm_list = self.arm_list
+        # u_list = self.u_list
 
+        # arm_list, LB_arm, UB_arm, u_list = self.Arm_Cut()
+
+        ft = lambda x: np.log(x) + 3 * np.log(np.log(x))
         if len(arm_list) == 1:
             print("All cut")
             return arm_list
         else:
-            if u_list[0] > u_list[1]:
-                opt_arm = 0
-                u_opt = u_list[0]
-            else:
-                opt_arm = 1
-                u_opt = u_list[1]
-
             Arm = []
             Na_T = dict()
             sum_reward = 0
@@ -157,7 +188,7 @@ class UCB(object):
                 Reward_arm[at] = []
 
             # Initial pulling
-            for t in range(K * len(arm_list)):
+            for t in range(K*len(arm_list)):
                 # Pulling!
                 at = np.mod(t, len(arm_list))
                 Arm.append(at)
@@ -165,33 +196,27 @@ class UCB(object):
                 Reward_arm[at].append(rt)
                 sum_reward += rt
                 Na_T[at] += 1
-                prob_opt = Na_T[opt_arm] / (t + 1)
-                cum_regret += u_opt - u_list[at]
+                prob_opt = Na_T[self.opt_arm] / (t + 1)
+                cum_regret += self.u_opt - u_list[at]
 
                 prob_opt_list.append(prob_opt)
                 cum_regret_list.append(cum_regret)
 
             # Run!
             UCB_list = []
-            UCB_hat_list = []
+
+            # data_collection = {'Arm':Arm, 'Reward':Reward, 'Cum_regret': cum_regret, 'Prob_opt':prob_opt }
             X_hat_list = []
-            what_choose = []
-            for t in range(K * len(arm_list), self.T):
-                X_hat_arm = []
+            for t in range(K*len(arm_list), self.T):
                 UB_list = []
-                UCB_hat = []
+                X_hat_arm = []
                 for a in arm_list:
                     # standard UCB
-                    x_hat = np.mean(Reward_arm[a])
-                    X_hat_arm.append(x_hat)
-                    upper_a = np.sqrt((3 * np.log(t)) / (2 * Na_T[a]))
-                    UCB_a = x_hat + upper_a
-                    UCB_hat.append(UCB_a)
-                    UB_a = min(UCB_a, UB_arm[a])
+                    mu_hat = np.mean(Reward_arm[a])
+                    UB_a = self.MaxKL(mu_hat,ft(t),Na_T[a])
+                    UB_a = np.min([self.UB_arm[a], UB_a])
                     UB_list.append(UB_a)
                 UCB_list.append(UB_list)
-                UCB_hat_list.append(UCB_hat)
-                X_hat_list.append(X_hat_arm)
 
                 at = UB_list.index(max(UB_list))
                 Arm.append(at)
@@ -201,16 +226,16 @@ class UCB(object):
                 sum_reward += rt
 
                 Na_T[at] += 1
-                prob_opt = Na_T[opt_arm] / (t + 1)
-                cum_regret += u_opt - u_list[at]
+                prob_opt = Na_T[self.opt_arm] / (t + 1)
+                cum_regret += self.u_opt - u_list[at]
 
                 prob_opt_list.append(prob_opt)
                 cum_regret_list.append(cum_regret)
-            return prob_opt_list, cum_regret_list, UCB_list, UCB_hat_list, Arm, X_hat_list, Na_T
+            return prob_opt_list, cum_regret_list, UCB_list, Arm, X_hat_list, Na_T
 
     def Bandit_Run(self):
-        prob_opt, cum_regret, UCB_list, Arm, X_hat_list,  Na_T = self.UCB(self.arm_list,self.u_list,self.K)
-        prob_opt_B, cum_regret_B, UCB_list_B, UCB_hat_list_B, Arm_B,X_hat_list_B, Na_T_B = self.B_UCB(self.K)
-        return [[prob_opt, cum_regret, UCB_list, Arm,X_hat_list, Na_T],[prob_opt_B, cum_regret_B, UCB_list_B, UCB_hat_list_B, Arm_B, X_hat_list_B, Na_T_B]]
+        prob_opt_list, cum_regret_list, UCB_list, Arm, X_hat_list, Na_T = self.KLUCB(self.arm_list,self.u_list,self.K)
+        prob_opt_list_B, cum_regret_list_B, UCB_list_B, Arm_B, X_hat_list_B, Na_T_B = self.B_KLUCB(self.arm_list,self.u_list,self.K)
+        return [[prob_opt_list, cum_regret_list, UCB_list, Arm, X_hat_list, Na_T],[prob_opt_list_B, cum_regret_list_B, UCB_list_B, Arm_B, X_hat_list_B, Na_T_B]]
 
 
