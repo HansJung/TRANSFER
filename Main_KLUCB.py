@@ -17,9 +17,9 @@ lx0,lx1 = LB
 hx0,hx1 = HB
 bound_list = [[lx0,hx0],[lx1,hx1]]
 
-EXP = GenData_IST.ChangeRXASPtoX(EXP)
-OBS = GenData_IST.ChangeRXASPtoX(OBS)
-ucb = UCB(bound_list,EXP,K,T)
+EXP = GenData_IST.ChangeRXASPtoX(EXP,idx_X=2)
+OBS = GenData_IST.ChangeRXASPtoX(OBS,idx_X=2)
+# ucb = UCB(bound_list,EXP,K,T)
 klucb = KLUCB(bound_list,EXP,K,T)
 
 # [[prob_opt, cum_regret, UCB_list, Arm,X_hat_list, Na_T],[prob_opt_B, cum_regret_B, UCB_list_B, UCB_hat_list_B, Arm_B, X_hat_list_B, Na_T_B]] = ucb.Bandit_Run()

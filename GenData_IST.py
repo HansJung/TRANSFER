@@ -26,6 +26,15 @@ def ThreeCategorize(df):
 
     return df_copy
 
+def BinaryCategorize(df):
+    df_copy = copy.copy(df)
+    df_q = list(df.quantile([0.5]))
+
+    df_copy[df_copy <= df_q[0]] = 0
+    df_copy[df_copy > df_q[0]] = 1
+
+    return df_copy
+
 def LabelRecover(df, df_orig, colname):
     print(pd.unique(df[colname]))
     print(pd.unique(df_orig[colname]))
@@ -90,7 +99,7 @@ def IndexifyDisc(IST):
 def ContToDisc(IST):
     # Discretize the continuous variable
     continuous_variable = ['RSBP', 'AGE', 'RDELAY']  # list(set(chosen_variables) - set(discrete_variables))
-    IST['AGE'] = ThreeCategorize(IST['AGE'])
+    IST['AGE'] = BinaryCategorize(IST['AGE'])
     IST['RSBP'] = ThreeCategorize(IST['RSBP'])
     IST['RDELAY'] = ThreeCategorize(IST['RDELAY'])
     return IST
@@ -131,8 +140,8 @@ def GenEXP(IST,sample_N = 10000, remember_seed = 3141693719):
 
 def GenOBS(EXP, seed_obs = 1):
     np.random.seed(seed_obs)
-    weight_sick = 0.05
-    weight_treatment = 0.95
+    weight_sick = 0.01
+    weight_treatment = 0.99
 
     sample_list = []
 
@@ -143,14 +152,14 @@ def GenOBS(EXP, seed_obs = 1):
 
         if elem_treat == 0:
             if elem_EXPD < 0.7:
-                prob = 0.1
+                prob = 0.05
             else:
-                prob = 0.9
+                prob = 0.95
         else:
             if elem_EXPD < 0.7:
-                prob = 0.9
+                prob = 0.95
             else:
-                prob = 0.1
+                prob = 0.05
 
         selection_prob = np.dot([weight_sick, weight_treatment],[prob, 1-elem_treat])
 
@@ -163,7 +172,7 @@ def GenOBS(EXP, seed_obs = 1):
     return OBS
 
 def HideCovarOBS(EXP,OBS):
-    selected_covariates = ['AGE', 'RATRIAL', 'RVISINF', 'RXASP', 'Y']
+    selected_covariates = ['AGE', 'SEX', 'RXASP', 'Y']
 
     ## Resulting dataset
     EXP = EXP[selected_covariates]
@@ -177,6 +186,7 @@ def ComputeBound(OBS,X):
     Hx0 = Lx0 + np.mean((OBS[X] == 1))
     Hx1 = Lx1 + np.mean((OBS[X] == 0))
 
+    print("CAUSAL BOUND",[[Lx0, Lx1], [Hx0, Hx1]])
     return [[Lx0,Lx1],[Hx0,Hx1]]
 
 def GroundTruth(EXP,X):
@@ -189,12 +199,12 @@ def CheckCase2(HB,U):
     Ux0, Ux1 = U
 
     if Ux0 < Ux1:
-        if Ux1 < hx0:
+        if hx0 < Ux1:
             return True
         else:
             return False
     else:
-        if Ux0 < hx1:
+        if hx1 < Ux0:
             return True
         else:
             return False

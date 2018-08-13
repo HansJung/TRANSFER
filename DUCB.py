@@ -87,6 +87,65 @@ class DUCB(object):
         Gk = G[k]
         return np.sqrt(c1*t*np.log(t)) / Gk
 
+    def conduct_DUCB(self):
+        policy_list, pred_list, Mmat, X_pl_list, Y_pl_list, Z = self.param_set
+
+        dictV = dict()
+        sumV = dict()
+        G = dict()
+        u = dict()
+        num_pull = dict()
+        arm_stored = list()
+        prob_opt_list = list()
+        avg_loss_list = list()
+        acc_loss = 0
+
+        for k in range(len(policy_list)):
+            dictV[k] = [0] * len(policy_list)
+            sumV[k] = 0
+            G[k] = 0
+            u[k] = 0
+            num_pull[k] = 0
+
+        # Initial running
+        policy_index = np.random.randint(len(policy_list))
+
+
+        for k in range(len(policy_list)):
+            for j in range(len(policy_list)):
+                dictV[k][j] = self.compute_val(k, j, s, 1, self.param_set)
+                sumV[k] += dictV[k][j]
+                G[k] += 1 / Mmat[k, j]
+            sumV[k] = sumV[k] / G[k]
+            sk = self.upper_bonus(1, k, G)
+            u[k] = sumV[k] + 1.5 * sk
+
+        a_prev = np.argmax(list(u.values()))
+        arm_stored.append(a_prev)
+        num_pull[a_prev] += 1
+
+        for t in range(len(policy_list) + 1, self.T):
+            eps_t = 2 / t
+            for k in range(len(policy_list)):
+                for j in range(len(policy_list)):
+                    Mkj = Mmat[k, j]
+                    if j == a_prev:
+                        dictV[k][j] += self.compute_val(k, j, t - 1, eps_t, self.param_set)
+                        G[k] += 1 / Mkj
+                    sumV[k] += dictV[k][j]
+                sk = self.upper_bonus(t, k, G)
+                sumV[k] = sumV[k] / G[k]
+                u[k] = sumV[k] + 1.5 * sk
+            a_prev = np.argmax(list(u.values()))
+            arm_stored.append(a_prev)
+            num_pull[a_prev] += 1
+            prob_opt = num_pull[self.opt_pl] / t
+            acc_loss += 1 - Y_pl_list[a_prev].iloc[t]
+            avg_loss = acc_loss / t
+            prob_opt_list.append(prob_opt)
+            avg_loss_list.append(avg_loss)
+        return [prob_opt_list,avg_loss_list,num_pull]
+
     def conduct_BDUCB(self,bdd):
         policy_list, pred_list, Mmat, X_pl_list, Y_pl_list, Z = self.param_set
 
@@ -152,60 +211,5 @@ class DUCB(object):
             avg_loss_list.append(avg_loss)
         return [prob_opt_list, avg_loss_list, num_pull]
 
-    def conduct_DUCB(self):
-        policy_list, pred_list, Mmat, X_pl_list, Y_pl_list, Z = self.param_set
 
-        dictV = dict()
-        sumV = dict()
-        G = dict()
-        u = dict()
-        num_pull = dict()
-        arm_stored = list()
-        prob_opt_list = list()
-        avg_loss_list = list()
-        acc_loss = 0
-
-        for k in range(len(policy_list)):
-            dictV[k] = [0] * len(policy_list)
-            sumV[k] = 0
-            G[k] = 0
-            u[k] = 0
-            num_pull[k] = 0
-
-        # Initial running
-        s = 1
-        for k in range(len(policy_list)):
-            for j in range(len(policy_list)):
-                dictV[k][j] = self.compute_val(k, j, s, 1, self.param_set)
-                sumV[k] += dictV[k][j]
-                G[k] += 1 / Mmat[k, j]
-            sumV[k] = sumV[k] / G[k]
-            sk = self.upper_bonus(1, k, G)
-            u[k] = sumV[k] + 1.5 * sk
-
-        a_prev = np.argmax(list(u.values()))
-        arm_stored.append(a_prev)
-        num_pull[a_prev] += 1
-
-        for t in range(len(policy_list) + 1, self.T):
-            eps_t = 2 / t
-            for k in range(len(policy_list)):
-                for j in range(len(policy_list)):
-                    Mkj = Mmat[k, j]
-                    if j == a_prev:
-                        dictV[k][j] += self.compute_val(k, j, t - 1, eps_t, self.param_set)
-                        G[k] += 1 / Mkj
-                    sumV[k] += dictV[k][j]
-                sk = self.upper_bonus(t, k, G)
-                sumV[k] = sumV[k] / G[k]
-                u[k] = sumV[k] + 1.5 * sk
-            a_prev = np.argmax(list(u.values()))
-            arm_stored.append(a_prev)
-            num_pull[a_prev] += 1
-            prob_opt = num_pull[self.opt_pl] / t
-            acc_loss += 1 - Y_pl_list[a_prev].iloc[t]
-            avg_loss = acc_loss / t
-            prob_opt_list.append(prob_opt)
-            avg_loss_list.append(avg_loss)
-        return [prob_opt_list,avg_loss_list,num_pull]
 

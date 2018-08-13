@@ -1,5 +1,6 @@
-from UCB import UCB
-from KLUCB import KLUCB
+import pandas as pd
+import numpy as np
+from DUCB import DUCB
 import GenData_IST
 import matplotlib.pyplot as plt
 
@@ -17,24 +18,50 @@ lx0,lx1 = LB
 hx0,hx1 = HB
 bound_list = [[lx0,hx0],[lx1,hx1]]
 
-EXP = GenData_IST.ChangeRXASPtoX(EXP)
-OBS = GenData_IST.ChangeRXASPtoX(OBS)
-ucb = UCB(bound_list,EXP,K,T)
-klucb = KLUCB(bound_list,EXP,K,T)
+EXP = GenData_IST.ChangeRXASPtoX(EXP,idx_X=2)
+OBS = GenData_IST.ChangeRXASPtoX(OBS,idx_X=2)
 
-# [[prob_opt, cum_regret, UCB_list, Arm,X_hat_list, Na_T],[prob_opt_B, cum_regret_B, UCB_list_B, UCB_hat_list_B, Arm_B, X_hat_list_B, Na_T_B]] = ucb.Bandit_Run()
-[[prob_opt_list, cum_regret_list, UCB_list, Arm, X_hat_list, Na_T],[prob_opt_list_B, cum_regret_list_B, UCB_list_B, Arm_B, X_hat_list_B, Na_T_B]] = klucb.Bandit_Run()
+policy_list = []
 
-plt.figure(1)
-plt.title('Prob Opt')
-plt.plot(prob_opt_list,label='KLUCB')
-plt.plot(prob_opt_list_B, label='B-KLUCB')
-plt.legend()
+prob_zero = 0.01
+prob_one = 0.99
+pl1 = lambda age, sex: prob_one if (age == 0) and (sex == 0) else prob_zero
+pl2 = lambda age, sex: prob_one if (age == 0) and (sex == 1) else prob_zero
+pl3 = lambda age, sex: prob_one if (age == 1) and (sex == 0) else prob_zero
+pl4 = lambda age, sex: prob_one if (age == 1) and (sex == 1) else prob_zero
 
-plt.figure(2)
-plt.title('Cummul. Regret')
-plt.plot(cum_regret_list,label='KLUCB')
-plt.plot(cum_regret_list_B, label='B-KLUCB')
-plt.legend()
+policy_list = [pl1,pl2,pl3,pl4]
 
-plt.show()
+# pl1 = lambda age, sex: 1 if (age == 0) and (sex == 0) else 0
+# pl2 = lambda age, sex: 1 if (age == 0) and (sex == 1) else 0
+# pl3 = lambda age, sex: 1 if (age == 1) and (sex == 0) else 0
+# pl4 = lambda age, sex: 1 if (age == 1) and (sex == 1) else 0
+# pl12 = lambda age, sex: 1 if ((age == 0) and (sex == 0)) or ((age == 0) and (sex == 1)) else 0
+# pl13 = lambda age, sex: 1 if ((age == 0) and (sex == 0)) or ((age == 1) and (sex == 0)) else 0
+# pl14 = lambda age, sex: 1 if ((age == 0) and (sex == 0)) or ((age == 1) and (sex == 1)) else 0
+# pl23 = lambda age, sex: 1 if ((age == 0) and (sex == 1)) or ((age == 1) and (sex == 0)) else 0
+# pl24 = lambda age, sex: 1 if ((age == 0) and (sex == 1)) or ((age == 1) and (sex == 1)) else 0
+# pl34 = lambda age, sex: 1 if ((age == 1) and (sex == 0)) or ((age == 1) and (sex == 1)) else 0
+
+
+
+X_pl_list = []
+for pl in policy_list:
+    X_pl = []
+    for idx in range(len(OBS)):
+        age = list(OBS[['AGE','SEX']].iloc[0])[0]
+        sex = list(OBS[['AGE', 'SEX']].iloc[0])[1]
+        x_pl = pl(age,sex)
+        X_pl.append(x_pl)
+    X_pl_list.append(X_pl)
+
+for age in [0,1]:
+    for sex in [0,1]:
+        print(len(EXP[(EXP['AGE'] == age) & (EXP['SEX']==sex) & (EXP['X']==1)]))
+
+
+# # ducb = DUCB(policy_list,pred_list,opt_pl,T, X_pl_list,Y_pl_list,Z)
+# # Vanila D-UCB (Rajet sen, 2018)
+# prob_opt_list,avg_loss_list,num_pull = ducb.conduct_DUCB()
+# # Bounded D-UCB (B-DUCB) (JZ)
+# bdd_prob_opt_list,bdd_avg_loss_list,bdd_num_pull = ducb.conduct_BDUCB(Bdd)

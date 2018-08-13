@@ -64,24 +64,44 @@ class KLUCB(object):
         else:
             return False
 
-    def MaxKL(self,mu_hat, ft,NaT):
-        ub = ft/NaT
-        ObjFun = lambda mu: -1 * self.BinoKL(mu_hat, mu)
-        ObjFunDer = lambda mu: mu_hat / mu - (1 - mu_hat) * (1 / (1 - mu))
-        ObjFunHess = lambda mu: -mu_hat / (mu ** 2) - (1 - mu_hat) / ((1 - mu) ** 2)
+    def MaxKL(self, mu_hat, ft, NaT, init_maxval=1):
+        maxval = copy.copy(init_maxval)
+        mu = mu_hat
+        M = ft/NaT
 
-        constraints = {'type': 'ineq',
-                       'fun': lambda mu: -1 * (self.BinoKL(mu_hat, mu) - ub),
-                       'jac': lambda mu: mu_hat / mu - (1 - mu_hat) * (1 / (1 - mu))
-                       }
+        terminal_cond = 1e-8
         while 1:
-            x0 = np.random.uniform(low=mu_hat, high=1, size=1)
-            if self.ConstFun(mu_hat, x0, ub) == True:
+            mu_cand = (mu + maxval) / 2
+            KL_val = self.BinoKL(mu_hat, mu_cand)
+            diff = np.abs(KL_val - M)
+            if diff > terminal_cond:
+                if KL_val < M:  # Go to right and update mu
+                    mu = copy.copy(mu_cand)
+                elif KL_val > M:  # Go to left and non-update mu.
+                    maxval = copy.copy(mu_cand)
+            else:
                 break
-        bound = tuple([tuple([0, 1])])
-        res = minimize(ObjFun, [x0], method='SLSQP', jac=ObjFunDer, hess=ObjFunHess, constraints=constraints,
-                       bounds=bound)
-        return res.x[0]
+        return mu
+
+    # def MaxKL(self,mu_hat, ft,NaT): ## BINARY SEARCH
+    #     ub = ft/NaT
+    #     ObjFun = lambda mu: -1 * self.BinoKL(mu_hat, mu)
+    #     ObjFunDer = lambda mu: mu_hat / mu - (1 - mu_hat) * (1 / (1 - mu))
+    #     ObjFunHess = lambda mu: -mu_hat / (mu ** 2) - (1 - mu_hat) / ((1 - mu) ** 2)
+    #
+    #     constraints = {'type': 'ineq',
+    #                    'fun': lambda mu: -1 * (self.BinoKL(mu_hat, mu) - ub),
+    #                    'jac': lambda mu: mu_hat / mu - (1 - mu_hat) * (1 / (1 - mu))
+    #                    }
+    #     while 1:
+    #         x0 = np.random.uniform(low=mu_hat, high=1, size=1)
+    #         if self.ConstFun(mu_hat, x0, ub) == True:
+    #             break
+    #     bound = tuple([tuple([0, 1])])
+    #     ## CHANGE to BINARY SEARCH
+    #     res = minimize(ObjFun, [x0], method='SLSQP', jac=ObjFunDer, hess=ObjFunHess, constraints=constraints,
+    #                    bounds=bound)
+    #     return res.x[0]
 
 
     def KLUCB(self, arm_list,u_list, K):
