@@ -152,14 +152,14 @@ def GenOBS(EXP, seed_obs = 1):
 
         if elem_treat == 0:
             if elem_EXPD < 0.7:
-                prob = 0.05
+                prob = 0.1
             else:
-                prob = 0.95
+                prob = 0.9
         else:
             if elem_EXPD < 0.7:
-                prob = 0.95
+                prob = 0.9
             else:
-                prob = 0.05
+                prob = 0.1
 
         selection_prob = np.dot([weight_sick, weight_treatment],[prob, 1-elem_treat])
 
@@ -180,14 +180,43 @@ def HideCovarOBS(EXP,OBS):
     return [EXP,OBS]
 
 def ComputeBound(OBS,X):
+    Px0 = len(OBS[OBS[X]==0])/len(OBS)
+    Px1 = len(OBS[OBS[X]==1])/len(OBS)
+
+    # Lx0 = np.mean((OBS[X] == 0) * OBS['Y'])
+    # Lx1 = np.mean((OBS[X] == 1) * OBS['Y'])
+
+    EY_x0 = np.mean(OBS[OBS[X] == 0]['Y'])
+    EY_x1 = np.mean(OBS[OBS[X] == 1]['Y'])
+    Lx0 = EY_x0 * Px0
+    Lx1 = EY_x1 * Px1
+
+    Hx0 = Lx0 + Px1
+    Hx1 = Lx1 + Px0
+
+    return [[Lx0,Lx1],[Hx0,Hx1]]
+
+def EmpiricalComputeBound(OBS,X,delta):
+    N = len(OBS)
+    delta = delta/2
+    fn = np.sqrt(((2 * N) ** (-1)) * (np.log(4) - np.log(delta)))
+
+    Px0 = len(OBS[OBS[X] == 0]) / len(OBS)
+    Px1 = len(OBS[OBS[X] == 1]) / len(OBS)
+
     Lx0 = np.mean((OBS[X] == 0) * OBS['Y'])
     Lx1 = np.mean((OBS[X] == 1) * OBS['Y'])
 
-    Hx0 = Lx0 + np.mean((OBS[X] == 1))
-    Hx1 = Lx1 + np.mean((OBS[X] == 0))
+    Lx0 = max(0,Lx0 - fn)
+    Lx1 = max(0,Lx1 - fn)
 
-    print("CAUSAL BOUND",[[Lx0, Lx1], [Hx0, Hx1]])
-    return [[Lx0,Lx1],[Hx0,Hx1]]
+    Hx0 = Lx0 + Px1
+    Hx1 = Lx1 + Px0
+
+    Hx0 = min(Hx0 + fn,1)
+    Hx1 = min(Hx1 + fn,1)
+
+    return [[Lx0, Lx1], [Hx0, Hx1]]
 
 def GroundTruth(EXP,X):
     Ux0 = np.mean(EXP[EXP[X]==0]['Y'])
@@ -233,8 +262,11 @@ def RunGenData(sample_N=12000, remember_seed = 1444260861):
     # OBS = ChangeRXASPtoX(OBS)
     return [EXP,OBS]
 
-def QualityCheck(EXP,OBS,X):
-    LB, HB = ComputeBound(OBS, X)
+def QualityCheck(EXP,OBS,X,TF_emp = False,delta=0.01):
+    if TF_emp:
+        LB, HB = EmpiricalComputeBound(OBS, X,delta)
+    else:
+        LB, HB = ComputeBound(OBS, X)
     U = GroundTruth(EXP, X)
     TF_Case2 = CheckCase2(HB, U)
 

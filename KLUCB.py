@@ -229,11 +229,10 @@ class KLUCB(object):
             X_hat_list = []
             for t in range(K*len(arm_list), self.T):
                 UB_list = []
-                X_hat_arm = []
                 for a in arm_list:
                     # standard UCB
                     mu_hat = np.mean(Reward_arm[a])
-                    UB_a = self.MaxKL(mu_hat,ft(t),Na_T[a])
+                    UB_a = self.MaxKL(mu_hat,ft(t),Na_T[a],init_maxval=1)
                     UB_a = np.min([self.UB_arm[a], UB_a])
                     UB_list.append(UB_a)
                 UCB_list.append(UB_list)

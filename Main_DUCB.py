@@ -9,11 +9,11 @@ K = 2
 T = 5500
 
 EXP,OBS = GenData_IST.RunGenData()
-print(GenData_IST.QualityCheck(EXP,OBS,X))
+# print(GenData_IST.QualityCheck(EXP,OBS,X))
 print(GenData_IST.ObsEffect(EXP,'Y'))
 print(GenData_IST.ObsEffect(OBS,'Y'))
 
-LB,HB = GenData_IST.ComputeBound(OBS,X)
+LB,HB = GenData_IST.EmpiricalComputeBound(OBS,X,delta=0.01)
 lx0,lx1 = LB
 hx0,hx1 = HB
 bound_list = [[lx0,hx0],[lx1,hx1]]
