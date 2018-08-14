@@ -5,7 +5,7 @@ import GenData_IST
 import matplotlib.pyplot as plt
 
 X = 'RXASP'
-K = 2
+K = 1
 T = 5500
 
 EXP,OBS = GenData_IST.RunGenData()

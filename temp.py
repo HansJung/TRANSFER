@@ -20,9 +20,11 @@ def BinarySearchMax(mu_hat, M, init_maxval=1):
                 mu = copy.copy(mu_cand)
         else:
             maxval = copy.copy(mu_cand)
+        if np.abs(mu-1) < terminal_cond:
+            return mu
 
-mu_hat = 0.1
-M = -2
+mu_hat = 0.1809
+M = 14.7276071649
 mu = BinarySearchMax(mu_hat=mu_hat,M=M,init_maxval=1)
 
 print(mu)

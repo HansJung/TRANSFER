@@ -76,9 +76,11 @@ class KLUCB(object):
                     mu = copy.copy(mu_cand)
             else:
                 maxval = copy.copy(mu_cand)
+            if np.abs(mu-1) < terminal_cond:
+                return mu
 
 
-    def KLUCB(self, arm_list,u_list, K):
+    def KLUCB(self, arm_list,u_list, K, TF_Causal):
         # LB_arm = self.LB_arm
         # UB_arm = self.UB_arm
         # arm_list = self.arm_list
@@ -108,7 +110,7 @@ class KLUCB(object):
                 Reward_arm[at] = []
 
             # Initial pulling
-            for t in range(K*len(arm_list)):
+            for t in range(1,K*len(arm_list)+1):
                 # Pulling!
                 at = np.mod(t, len(arm_list))
                 Arm.append(at)
@@ -116,7 +118,7 @@ class KLUCB(object):
                 Reward_arm[at].append(rt)
                 sum_reward += rt
                 Na_T[at] += 1
-                prob_opt = Na_T[self.opt_arm] / (t + 1)
+                prob_opt = Na_T[self.opt_arm] / (t)
                 cum_regret += self.u_opt - u_list[at]
 
                 prob_opt_list.append(prob_opt)
@@ -126,14 +128,15 @@ class KLUCB(object):
             UCB_list = []
 
             # data_collection = {'Arm':Arm, 'Reward':Reward, 'Cum_regret': cum_regret, 'Prob_opt':prob_opt }
-            X_hat_list = []
-            for t in range(K*len(arm_list), self.T):
+            for t in range(K*len(arm_list)+1, self.T+1):
+                # print(t,ft(t),ft(t)/Na_T[0],ft(t)/Na_T[1],TF_Causal)
                 UB_list = []
-                X_hat_arm = []
                 for a in arm_list:
                     # standard UCB
                     mu_hat = np.mean(Reward_arm[a])
                     UB_a = self.MaxKL(mu_hat, ft(t), Na_T[a], init_maxval=1)
+                    if TF_Causal:
+                        UB_a = np.min([self.UB_arm[a], UB_a])
                     UB_list.append(UB_a)
                 UCB_list.append(UB_list)
 
@@ -145,90 +148,90 @@ class KLUCB(object):
                 sum_reward += rt
 
                 Na_T[at] += 1
-                prob_opt = Na_T[self.opt_arm] / (t + 1)
+                prob_opt = Na_T[self.opt_arm] / (t)
                 cum_regret += self.u_opt - u_list[at]
 
                 prob_opt_list.append(prob_opt)
                 cum_regret_list.append(cum_regret)
-            return prob_opt_list, cum_regret_list, UCB_list, Arm, X_hat_list, Na_T
+            return prob_opt_list, cum_regret_list, UCB_list, Arm, Na_T
 
-    def B_KLUCB(self, arm_list,u_list, K):
-        # LB_arm = self.LB_arm
-        # UB_arm = self.UB_arm
-        # arm_list = self.arm_list
-        # u_list = self.u_list
-
-        # arm_list, LB_arm, UB_arm, u_list = self.Arm_Cut()
-
-        ft = lambda x: np.log(x) + 3 * np.log(np.log(x))
-        if len(arm_list) == 1:
-            print("All cut")
-            return arm_list
-        else:
-            Arm = []
-            Na_T = dict()
-            sum_reward = 0
-            cum_regret = 0
-            Reward_arm = dict()
-
-            prob_opt_list = []
-            cum_regret_list = []
-
-            # Initial variable setting
-            for t in range(len(arm_list)):
-                # Before pulling
-                at = t
-                Na_T[at] = 0
-                Reward_arm[at] = []
-
-            # Initial pulling
-            for t in range(K*len(arm_list)):
-                # Pulling!
-                at = np.mod(t, len(arm_list))
-                Arm.append(at)
-                rt = self.Pull_Receive(at, Na_T)
-                Reward_arm[at].append(rt)
-                sum_reward += rt
-                Na_T[at] += 1
-                prob_opt = Na_T[self.opt_arm] / (t + 1)
-                cum_regret += self.u_opt - u_list[at]
-
-                prob_opt_list.append(prob_opt)
-                cum_regret_list.append(cum_regret)
-
-            # Run!
-            UCB_list = []
-
-            # data_collection = {'Arm':Arm, 'Reward':Reward, 'Cum_regret': cum_regret, 'Prob_opt':prob_opt }
-            X_hat_list = []
-            for t in range(K*len(arm_list), self.T):
-                UB_list = []
-                for a in arm_list:
-                    # standard UCB
-                    mu_hat = np.mean(Reward_arm[a])
-                    UB_a = self.MaxKL(mu_hat,ft(t),Na_T[a],init_maxval=1)
-                    UB_a = np.min([self.UB_arm[a], UB_a])
-                    UB_list.append(UB_a)
-                UCB_list.append(UB_list)
-
-                at = UB_list.index(max(UB_list))
-                Arm.append(at)
-                rt = self.Pull_Receive(at, Na_T)
-
-                Reward_arm[at].append(rt)
-                sum_reward += rt
-
-                Na_T[at] += 1
-                prob_opt = Na_T[self.opt_arm] / (t + 1)
-                cum_regret += self.u_opt - u_list[at]
-
-                prob_opt_list.append(prob_opt)
-                cum_regret_list.append(cum_regret)
-            return prob_opt_list, cum_regret_list, UCB_list, Arm, X_hat_list, Na_T
+    # def B_KLUCB(self, arm_list,u_list, K):
+    #     # LB_arm = self.LB_arm
+    #     # UB_arm = self.UB_arm
+    #     # arm_list = self.arm_list
+    #     # u_list = self.u_list
+    #
+    #     # arm_list, LB_arm, UB_arm, u_list = self.Arm_Cut()
+    #
+    #     ft = lambda x: np.log(x) + 3 * np.log(np.log(x))
+    #     if len(arm_list) == 1:
+    #         print("All cut")
+    #         return arm_list
+    #     else:
+    #         Arm = []
+    #         Na_T = dict()
+    #         sum_reward = 0
+    #         cum_regret = 0
+    #         Reward_arm = dict()
+    #
+    #         prob_opt_list = []
+    #         cum_regret_list = []
+    #
+    #         # Initial variable setting
+    #         for t in range(len(arm_list)):
+    #             # Before pulling
+    #             at = t
+    #             Na_T[at] = 0
+    #             Reward_arm[at] = []
+    #
+    #         # Initial pulling
+    #         for t in range(1,K*len(arm_list)+1):
+    #             # Pulling!
+    #             at = np.mod(t, len(arm_list))
+    #             Arm.append(at)
+    #             rt = self.Pull_Receive(at, Na_T)
+    #             Reward_arm[at].append(rt)
+    #             sum_reward += rt
+    #             Na_T[at] += 1
+    #             prob_opt = Na_T[self.opt_arm] / (t + 1)
+    #             cum_regret += self.u_opt - u_list[at]
+    #
+    #             prob_opt_list.append(prob_opt)
+    #             cum_regret_list.append(cum_regret)
+    #
+    #         # Run!
+    #         UCB_list = []
+    #
+    #         # data_collection = {'Arm':Arm, 'Reward':Reward, 'Cum_regret': cum_regret, 'Prob_opt':prob_opt }
+    #         X_hat_list = []
+    #         for t in range(K*len(arm_list)+1, self.T+1):
+    #             UB_list = []
+    #             for a in arm_list:
+    #                 # standard UCB
+    #                 mu_hat = np.mean(Reward_arm[a])
+    #                 UB_a = self.MaxKL(mu_hat,ft(t),Na_T[a],init_maxval=1)
+    #                 UB_a = np.min([self.UB_arm[a], UB_a])
+    #                 UB_list.append(UB_a)
+    #             UCB_list.append(UB_list)
+    #
+    #             at = UB_list.index(max(UB_list))
+    #             Arm.append(at)
+    #             rt = self.Pull_Receive(at, Na_T)
+    #
+    #             Reward_arm[at].append(rt)
+    #             sum_reward += rt
+    #
+    #             Na_T[at] += 1
+    #             prob_opt = Na_T[self.opt_arm] / (t + 1)
+    #             cum_regret += self.u_opt - u_list[at]
+    #
+    #             prob_opt_list.append(prob_opt)
+    #             cum_regret_list.append(cum_regret)
+    #         return prob_opt_list, cum_regret_list, UCB_list, Arm, X_hat_list, Na_T
 
     def Bandit_Run(self):
-        prob_opt_list, cum_regret_list, UCB_list, Arm, X_hat_list, Na_T = self.KLUCB(self.arm_list,self.u_list,self.K)
-        prob_opt_list_B, cum_regret_list_B, UCB_list_B, Arm_B, X_hat_list_B, Na_T_B = self.B_KLUCB(self.arm_list,self.u_list,self.K)
-        return [[prob_opt_list, cum_regret_list, UCB_list, Arm, X_hat_list, Na_T],[prob_opt_list_B, cum_regret_list_B, UCB_list_B, Arm_B, X_hat_list_B, Na_T_B]]
+        prob_opt_list, cum_regret_list, UCB_list, Arm, Na_T = self.KLUCB(self.arm_list,self.u_list,self.K,TF_Causal=False)
+        prob_opt_list_B, cum_regret_list_B, UCB_list_B, Arm_B, Na_T_B = self.KLUCB(self.arm_list,self.u_list,self.K,TF_Causal=True)
+        return [[prob_opt_list, cum_regret_list, UCB_list, Arm, Na_T],[prob_opt_list_B, cum_regret_list_B, UCB_list_B, Arm_B, Na_T_B]]
 
 
