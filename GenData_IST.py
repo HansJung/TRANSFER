@@ -140,8 +140,8 @@ def GenEXP(IST,sample_N = 10000, remember_seed = 3141693719):
 
 def GenOBS(EXP, seed_obs = 1):
     np.random.seed(seed_obs)
-    weight_sick = 0.01
-    weight_treatment = 0.99
+    weight_sick = 0.02
+    weight_treatment = 0.98
 
     sample_list = []
 
@@ -152,14 +152,14 @@ def GenOBS(EXP, seed_obs = 1):
 
         if elem_treat == 0:
             if elem_EXPD < 0.7:
-                prob = 0.1
+                prob = 0.2
             else:
-                prob = 0.9
+                prob = 0.8
         else:
             if elem_EXPD < 0.7:
-                prob = 0.9
+                prob = 0.8
             else:
-                prob = 0.1
+                prob = 0.2
 
         selection_prob = np.dot([weight_sick, weight_treatment],[prob, 1-elem_treat])
 

@@ -7,24 +7,26 @@ def BinoKL(mu_hat, mu):
 def BinarySearchMax(mu_hat, M, init_maxval=1):
     maxval = copy.copy(init_maxval)
     mu = mu_hat
-
     terminal_cond = 1e-8
     while 1:
         mu_cand = (mu + maxval) / 2
         KL_val = BinoKL(mu_hat, mu_cand)
         diff = np.abs(KL_val - M)
-        if diff > terminal_cond:
-            if KL_val < M:  # Go to right and update mu
+        if KL_val < M:
+            if diff < terminal_cond:
+                mu = mu_cand
+                return mu
+            else:
                 mu = copy.copy(mu_cand)
-            elif KL_val > M:  # Go to left and non-update mu.
-                maxval = copy.copy(mu_cand)
         else:
-            break
-    return mu
+            maxval = copy.copy(mu_cand)
 
-mu = BinarySearchMax(mu_hat=0.2,M=0.5,init_maxval=1)
+mu_hat = 0.1
+M = -2
+mu = BinarySearchMax(mu_hat=mu_hat,M=M,init_maxval=1)
+
 print(mu)
-
+print(BinoKL(mu_hat,mu))
 
 
 #

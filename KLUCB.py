@@ -57,16 +57,10 @@ class KLUCB(object):
     def BinoKL(self, mu_hat, mu):
         return mu_hat * np.log(mu_hat / mu) + (1 - mu_hat) * np.log((1 - mu_hat) / (1 - mu))
 
-    def ConstFun(self,mu_hat, mu, ub):
-        ConstVal = -1 * (self.BinoKL(mu_hat, mu) - ub)
-        if ConstVal > 0:
-            return True
-        else:
-            return False
 
     def MaxKL(self, mu_hat, ft, NaT, init_maxval=1):
         maxval = copy.copy(init_maxval)
-        mu = mu_hat
+        mu = copy.copy(mu_hat)
         M = ft/NaT
 
         terminal_cond = 1e-8
@@ -74,34 +68,14 @@ class KLUCB(object):
             mu_cand = (mu + maxval) / 2
             KL_val = self.BinoKL(mu_hat, mu_cand)
             diff = np.abs(KL_val - M)
-            if diff > terminal_cond:
-                if KL_val < M:  # Go to right and update mu
+            if KL_val < M:
+                if diff < terminal_cond:
+                    mu = mu_cand
+                    return mu
+                else:
                     mu = copy.copy(mu_cand)
-                elif KL_val > M:  # Go to left and non-update mu.
-                    maxval = copy.copy(mu_cand)
             else:
-                break
-        return mu
-
-    # def MaxKL(self,mu_hat, ft,NaT): ## BINARY SEARCH
-    #     ub = ft/NaT
-    #     ObjFun = lambda mu: -1 * self.BinoKL(mu_hat, mu)
-    #     ObjFunDer = lambda mu: mu_hat / mu - (1 - mu_hat) * (1 / (1 - mu))
-    #     ObjFunHess = lambda mu: -mu_hat / (mu ** 2) - (1 - mu_hat) / ((1 - mu) ** 2)
-    #
-    #     constraints = {'type': 'ineq',
-    #                    'fun': lambda mu: -1 * (self.BinoKL(mu_hat, mu) - ub),
-    #                    'jac': lambda mu: mu_hat / mu - (1 - mu_hat) * (1 / (1 - mu))
-    #                    }
-    #     while 1:
-    #         x0 = np.random.uniform(low=mu_hat, high=1, size=1)
-    #         if self.ConstFun(mu_hat, x0, ub) == True:
-    #             break
-    #     bound = tuple([tuple([0, 1])])
-    #     ## CHANGE to BINARY SEARCH
-    #     res = minimize(ObjFun, [x0], method='SLSQP', jac=ObjFunDer, hess=ObjFunHess, constraints=constraints,
-    #                    bounds=bound)
-    #     return res.x[0]
+                maxval = copy.copy(mu_cand)
 
 
     def KLUCB(self, arm_list,u_list, K):
@@ -159,7 +133,7 @@ class KLUCB(object):
                 for a in arm_list:
                     # standard UCB
                     mu_hat = np.mean(Reward_arm[a])
-                    UB_a = self.MaxKL(mu_hat,ft(t),Na_T[a])
+                    UB_a = self.MaxKL(mu_hat, ft(t), Na_T[a], init_maxval=1)
                     UB_list.append(UB_a)
                 UCB_list.append(UB_list)
 

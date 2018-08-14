@@ -9,6 +9,7 @@ T = 5500
 
 EXP,OBS = GenData_IST.RunGenData()
 print(GenData_IST.QualityCheck(EXP,OBS,X,TF_emp=True))
+print("")
 print(GenData_IST.QualityCheck(EXP,OBS,X,TF_emp=False))
 print(GenData_IST.ObsEffect(EXP,'Y'))
 print(GenData_IST.ObsEffect(OBS,'Y'))
