@@ -271,7 +271,7 @@ def QualityCheck(listEXP, OBS, policy_list):
     print(LB2, U2, HB2)
     print('CASE 2',TF_case2)
 
-
-listEXP, OBS = RunGenData()
-policy_list = PolicyGen()
-QualityCheck(listEXP,OBS,policy_list)
+#
+# listEXP, OBS = RunGenData()
+# policy_list = PolicyGen()
+# QualityCheck(listEXP,OBS,policy_list)
