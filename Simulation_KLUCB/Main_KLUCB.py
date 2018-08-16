@@ -1,6 +1,6 @@
 from UCB import UCB
-from KLUCB import KLUCB
-import GenData_IST
+from Simulation_KLUCB.KLUCB import KLUCB
+from Simulation_KLUCB import GenData_IST
 import matplotlib.pyplot as plt
 
 X = 'RXASP'

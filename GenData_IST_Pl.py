@@ -116,26 +116,6 @@ def ExpectedOutcomePl(EXP,pl):
                 sum_prob += sum_prob_val
     return sum_prob
 
-def ttestStatGen(df,X,pl):
-    listSample = []
-    possible_case = 2 ** 32 - 1
-    seed_num = np.random.randint(possible_case)
-    np.random.seed(seed_num)
-    for idx in range(len(df)):
-        elem_df = df.iloc[idx]
-        z = [elem_df['AGE'], elem_df['SEX']]
-        x = int(elem_df[X])
-        elem_probs = pl(z[0],z[1])
-        sample_prob = elem_probs[x]
-        if np.random.binomial(1, sample_prob, 1)[0] == 1:
-            listSample.append(elem_df)
-    dfSample = pd.DataFrame(listSample)
-    nobs = len(listSample)
-    mean_obs = np.mean(dfSample['Y'])
-    std_obs = np.std(dfSample['Y'])
-
-    return [nobs, mean_obs, std_obs, seed_num]
-
 # Gen EXP
 def GenEXPPl(IST,policy_list, seed_num=123):
     np.random.seed(seed_num)
@@ -178,20 +158,7 @@ def GenOBS(EXP, seed_obs = 123):
         else:
             prob = 0.0045
 
-        # if elem_treat == 0:
-        #     if elem_EXPD < 0.9:
-        #         prob = 0.1
-        #     else:
-        #         prob = 0.9
-        # else:
-        #     if elem_EXPD < 0.9:
-        #         prob = 0.9
-        #     else:
-        #         prob = 0.1
-
-        # selection_prob = np.dot([weight_sick, weight_treatment],[prob, elem_treat])
         selection_prob = prob
-
         if np.random.binomial(1, selection_prob) == 0:
             continue
         else:
@@ -244,51 +211,67 @@ def CheckCase2(HB,U):
         else:
             return False
 
-# Load dataset
-IST = pd.read_csv('IST.csv')
-IST = ReduceIST(IST)
-IST = IndexifyDisc(IST)
-IST = ContToDisc(IST)
+def PolicyGen(low_prob=0.005, high_prob=0.995):
+    pl1 = lambda age, sex: [low_prob, high_prob] if ((age == 0) and (sex == 0)) else [high_prob, low_prob]
+    pl2 = lambda age, sex: [high_prob, low_prob] if ((age == 0) and (sex == 0)) else [low_prob, high_prob]
+    policy_list = [pl1, pl2]
+    return policy_list
 
-X = 'RXASP'
+def LB_U_HB(listEXP,OBS, policy_list):
+    EXP_pl1, EXP_pl2 = listEXP
+    pl1, pl2 = policy_list
 
-# Define policies
-low_prob = 0.005
-high_prob = 0.995
+    EY1 = np.mean(EXP_pl1['Y'])
+    EY2 = np.mean(EXP_pl2['Y'])
 
-pl1 = lambda age, sex: [low_prob, high_prob] if ((age == 0) and (sex == 0)) else [high_prob, low_prob]
-pl2 = lambda age, sex: [high_prob, low_prob] if ((age == 0) and (sex == 0)) else [low_prob, high_prob]
-policy_list = [pl1,pl2]
+    LB1, HB1 = BoundsPl(OBS, pl1)
+    LB2, HB2 = BoundsPl(OBS, pl2)
 
-EXP_pl1, EXP_pl2 = GenEXPPl(IST,policy_list)
-EY1 = np.mean(EXP_pl1['Y'])
-EY2 = np.mean(EXP_pl2['Y'])
-U = [EY1,EY2]
+    U = [EY1, EY2]
+    LB = [LB1,LB2]
+    HB = [HB1, HB2]
 
-# print(np.mean(EXP_pl1['Y']), ExpectedOutcomePl(EXP_pl1,pl1))
-# print(np.mean(EXP_pl2['Y']), ExpectedOutcomePl(EXP_pl2,pl2))
+    return [LB,U,HB]
 
-OBS = GenOBS(IST)
 
-OBS = HideCovarOBS(OBS)
-EXP_pl1 = HideCovarOBS(EXP_pl1)
-EXP_pl2 = HideCovarOBS(EXP_pl2)
+def RunGenData():
+    # Load dataset
+    IST = pd.read_csv('IST.csv')
+    IST = ReduceIST(IST)
+    IST = IndexifyDisc(IST)
+    IST = ContToDisc(IST)
 
-LB1,HB1 = BoundsPl(OBS,pl1)
-LB2,HB2 = BoundsPl(OBS,pl2)
-HB = [HB1,HB2]
+    # Define policies
+    low_prob = 0.005
+    high_prob = 0.995
+    policy_list = PolicyGen(low_prob, high_prob)
 
-print(LB1,EY1,HB1)
-print(LB2,EY2,HB2)
+    listEXP = GenEXPPl(IST, policy_list)
+    EXP1, EXP2 = listEXP
+    # print(np.mean(EXP_pl1['Y']), ExpectedOutcomePl(EXP_pl1,pl1))
+    # print(np.mean(EXP_pl2['Y']), ExpectedOutcomePl(EXP_pl2,pl2))
 
-print(CheckCase2(HB,U))
+    OBS = GenOBS(IST)
 
-sumprob = 0
-for age in [0,1]:
-    for sex in [0,1]:
-        for x in [0,1]:
-            P_xz = len(OBS[(OBS['AGE'] == age) & (OBS['SEX'] == sex) & (OBS['RXASP']==x)]) / len(OBS)
-            pixz = pl1(age,sex)[1-x]
-            sumprob += P_xz * pixz
-            print(age,sex,x,P_xz, pixz)
-print(sumprob)
+    EXP1 = HideCovarOBS(EXP1)
+    EXP2 = HideCovarOBS(EXP2)
+    OBS = HideCovarOBS(OBS)
+    listEXP = [EXP1,EXP2]
+
+    return [listEXP, OBS]
+
+def QualityCheck(listEXP, OBS, policy_list):
+    LB,U,HB = LB_U_HB(listEXP,OBS,policy_list)
+    LB1,LB2 = LB
+    U1, U2 = U
+    HB1, HB2 = HB
+
+    TF_case2 = CheckCase2(HB,U)
+    print(LB1, U1, HB1)
+    print(LB2, U2, HB2)
+    print('CASE 2',TF_case2)
+
+
+listEXP, OBS = RunGenData()
+policy_list = PolicyGen()
+QualityCheck(listEXP,OBS,policy_list)

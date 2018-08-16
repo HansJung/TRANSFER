@@ -140,8 +140,8 @@ def GenEXP(IST,sample_N = 10000, remember_seed = 3141693719):
 
 def GenOBS(EXP, seed_obs = 1):
     np.random.seed(seed_obs)
-    weight_sick = 0.02
-    weight_treatment = 0.98
+    weight_sick = 0.01
+    weight_treatment = 0.99
 
     sample_list = []
 
