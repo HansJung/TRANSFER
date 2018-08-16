@@ -103,6 +103,7 @@ def ContToDisc(IST):
     # Discretize the continuous variable
     continuous_variable = ['RSBP', 'AGE', 'RDELAY']  # list(set(chosen_variables) - set(discrete_variables))
     IST['AGE'] = BinaryCategorize(IST['AGE'])
+    # IST['AGE'] = ThreeCategorize(IST['AGE'])
     IST['RSBP'] = ThreeCategorize(IST['RSBP'])
     IST['RDELAY'] = ThreeCategorize(IST['RDELAY'])
     return IST
@@ -369,16 +370,102 @@ def ttestStatGen(df,X,pl):
 def SeedFindingPl(IST, X, policy_list, sample_N=12000, alpha=0.01):
     iter_idx = 0
     possible_case = 2 ** 32 - 1
+    possible_pairs = list(itertools.combinations(range(len(policy_list)), 2))
+    prevMaxDiff = -200
+    remember_seed = 0
 
     while 1:
         iter_idx += 1
         seed_num = np.random.randint(possible_case)
         np.random.seed(seed_num)
         Sample = IST.sample(n=sample_N)
-        TF_sig = SigTestPl(Sample, 'RXASP', policy_list, alpha)
-        print(iter_idx,TF_sig)
-        if TF_sig:
+        listOutcome = []
+        for idx in range(len(policy_list)):
+            pli = policy_list[idx]
+            outcomePli = ExpectedOutcomePl(Sample, pli)
+            listOutcome.append(outcomePli)
+
+        TF_sig = True
+        listDiff = []
+        for pair_elem in possible_pairs:
+            diff = np.abs(listOutcome[pair_elem[0]] - listOutcome[pair_elem[1]])
+            listDiff.append(diff)
+            if diff < alpha:
+                TF_sig = False
+                break
+        maxDiff = max(listDiff)
+
+        if maxDiff > prevMaxDiff:
+            prevMaxDiff = maxDiff
+            remember_seed = seed_num
+        if ((iter_idx % 100) == 0):
+            print(iter_idx, prevMaxDiff, remember_seed)
+        if TF_sig == True:
             return seed_num
+
+        # TF_sig = SigTestPl(Sample, 'RXASP', policy_list, alpha)
+        # print(iter_idx,TF_sig)
+        # if TF_sig:
+        #     return seed_num
+
+
+def SeedFindingOBSPl(EXP, sample_N, policy_list, alpha=0.01): # If numPolicy = 2
+    possible_case = 2 ** 32 - 1
+    iter_idx = 0
+    prevMaxDiff = -200
+    remember_seed = 0
+
+    while 1:
+        iter_idx += 1
+        seed_num = np.random.randint(possible_case)
+        np.random.seed(seed_num)
+        Sample = EXP.sample(sample_N)
+        listOutcome = []
+        for idx in range(len(policy_list)):
+            pl = policy_list[idx]
+            outcome_pl = ExpectedOutcomePl(Sample,pl)
+            listOutcome.append(outcome_pl)
+
+        diff = listOutcome[0] - listOutcome[1]
+        if diff > prevMaxDiff:
+            prevMaxDiff = diff
+            remember_seed = seed_num
+
+        if iter_idx % 100 == 0:
+            print(iter_idx, prevMaxDiff, remember_seed)
+        if diff > alpha:
+            return seed_num
+
+def GenOBSPl(EXP,sample_N, seed_num):
+    np.random.seed(seed_num)
+    return EXP.sample(sample_N)
+
+def BoundsPl(OBS,pl):
+    X = 'RXASP'
+    sum_prob_lb = 0
+    for age in [0, 1]:
+        for sex in [0, 1]:
+            probs = pl(age, sex)
+            for x in [0,1]:
+                P_xz = len(OBS[(OBS['AGE'] == age) & (OBS['SEX'] == sex) & (OBS[X]==x)]) / len(OBS)
+                pi_xz = probs[x]
+                EY_xz = np.mean(OBS[(OBS['AGE'] == age) & (OBS['SEX'] == sex) & (OBS[X]==x)]['Y'])
+                sum_prob_lb += EY_xz * pi_xz * P_xz
+
+    sum_prob_ub = 0
+    LB = copy.copy(sum_prob_lb)
+    for age in [0, 1]:
+        for sex in [0, 1]:
+            probs = pl(age, sex)
+            for x in [0,1]:
+                P_xz = len(OBS[(OBS['AGE'] == age) & (OBS['SEX'] == sex) & (OBS[X] == x)]) / len(OBS)
+                non_pi_xz = probs[1-x]
+                sum_prob_ub += P_xz * non_pi_xz
+    UB = LB + sum_prob_ub
+    return [LB,UB]
+
+
+
 
 
 
@@ -396,17 +483,70 @@ policy_list = []
 
 low_prob = 0.1
 high_prob = 0.9
-pl1 = lambda age, sex: [low_prob, high_prob] if (age == 0) and (sex == 0) else [high_prob, low_prob]
-pl1_ = lambda age, sex: [high_prob, low_prob] if (age == 0) and (sex == 0) else [low_prob, high_prob]
+# pl1 = lambda age, sex: [low_prob, high_prob] if ((age == 0) and (sex == 0)) or ((age ==1) and (sex == 1)) else [high_prob, low_prob]
+# pl1_ = lambda age, sex: [high_prob, low_prob] if ((age == 0) and (sex == 0)) or ((age==1) and (sex == 1)) else [low_prob, high_prob]
+
+# pl1 = lambda age, sex: [low_prob, high_prob] if (age == 0) and (sex == 0) else [high_prob, low_prob]
+# pl1_ = lambda age, sex: [high_prob, low] if (age == 0) and (sex == 0) else [high_prob, low_prob]
+
+pl1 = lambda age, sex: [low_prob, high_prob] if ((age == 0) and (sex == 0)) else [high_prob, low_prob]
+pl2 = lambda age, sex: [high_prob, low_prob] if ((age == 0) and (sex == 0)) else [low_prob, high_prob]
+
+# pl1 = lambda age, sex: [low_prob, high_prob] if (((age == 1) or (age == 0)) and (sex == 0)) else [high_prob, low_prob]
+# pl1_ = lambda age, sex: [high_prob, low_prob] if (((age == 1) or (age == 0)) and (sex == 0)) else [low_prob, high_prob]
 
 # pl2 = lambda age, sex: [low_prob, high_prob] if (age == 0) and (sex == 1) else [high_prob, low_prob]
 # pl3 = lambda age, sex: [low_prob, high_prob] if (age == 1) and (sex == 0) else [high_prob, low_prob]
 # pl4 = lambda age, sex: [low_prob, high_prob] if (age == 1) and (sex == 1) else [high_prob, low_prob]
 
-policy_list = [pl1,pl1_]
+policy_list = [pl1,pl2]
+
 # policy_list = [pl1,pl2,pl3,pl4]
 # policy_list = [pl1,pl1_]
 
-remember_seed = SeedFindingPl(IST,X,policy_list,sample_N=10000,alpha=0.01)
-# remember_seed = 3011694160
-EXP = GenEXP(IST,sample_N=10000,remember_seed=remember_seed)
+sample_N = 10000
+# remember_seed = SeedFindingPl(IST,X,policy_list,sample_N=sample_N,alpha=0.02)
+seed_EXP = 3357231809
+
+EXP = GenEXP(IST,sample_N=sample_N,remember_seed=seed_EXP)
+# Ground truth
+outcome_pl1 = ExpectedOutcomePl(EXP,pl1)
+outcome_pl2 = ExpectedOutcomePl(EXP,pl2)
+EYpis = [outcome_pl1, outcome_pl2]
+print('EXP',outcome_pl1,outcome_pl2)
+
+sample_obs_N = 3000
+# seed_OBS = SeedFindingOBSPl(EXP,sample_obs_N,policy_list)
+# seed_OBS = 2530037806 # sample_obs_N = 5000
+seed_OBS = 1726533694 # sample_obs_N = 3000
+
+OBS = GenOBSPl(EXP,sample_obs_N,seed_OBS)
+outcome_obs_pl1 = ExpectedOutcomePl(OBS,pl1)
+outcome_obs_pl2 = ExpectedOutcomePl(OBS,pl2)
+print('OBS',outcome_obs_pl1,outcome_obs_pl2)
+
+EXP,OBS = HideCovarOBS(EXP,OBS)
+LB1, HB1 = BoundsPl(OBS,pl1)
+LB2, HB2 = BoundsPl(OBS,pl2)
+HBs = [HB1,HB2]
+print("")
+print(LB1,outcome_pl1,HB1)
+print(LB2,outcome_pl2,HB2)
+print(CheckCase2(HBs,EYpis))
+
+
+# Bound?
+# sum_prob = 0
+# for age in [0,1]:
+#     for sex in [0,1]:
+#         Pz = len(EXP[(EXP['AGE']==age)&(EXP['SEX']==sex)])/len(EXP)
+#         probs = pl(age,sex)
+#         Yz = EXP[(EXP['AGE'] == age) & (EXP['SEX'] == sex)]
+#         for x in [0,1]:
+#             Yx_z = Yz[Yz[X]==x]['Y']
+#             EYx_z = np.mean(Yx_z)
+#             sum_prob_val = EYx_z * probs[x] * Pz
+#             # print(sum_prob_val, EYx_z, probs[x],Pz,age,sex)
+#             sum_prob += sum_prob_val
+# return sum_prob
+
