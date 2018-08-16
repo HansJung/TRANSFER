@@ -183,10 +183,10 @@ def GenEXPPl(IST,policy_list):
         listSamplePlIST[plidx] = pd.DataFrame(listSamplePlIST[plidx])
     return listSamplePlIST
 
-def GenOBS(EXP, seed_obs = 1):
+def GenOBS(EXP, seed_obs = 123):
     np.random.seed(seed_obs)
-    weight_sick = 0.01
-    weight_treatment = 0.99
+    weight_sick = 0.99
+    weight_treatment = 0.01
 
     sample_list = []
 
@@ -194,20 +194,27 @@ def GenOBS(EXP, seed_obs = 1):
         elem = EXP.iloc[idx]
         elem_EXPD = elem['EXPDD']
         elem_treat = elem['RXASP']
-        
+        elem_age = elem['AGE']
+        elem_sex = elem['SEX']
 
-        if elem_treat == 0:
-            if elem_EXPD < 0.9:
-                prob = 0.1
-            else:
-                prob = 0.9
+        if elem_age == 0 and elem_sex == 0 and elem_treat == 1:
+            prob = 0.995
         else:
-            if elem_EXPD < 0.9:
-                prob = 0.9
-            else:
-                prob = 0.1
+            prob = 0.005
 
-        selection_prob = np.dot([weight_sick, weight_treatment],[prob, 1-elem_treat])
+        # if elem_treat == 0:
+        #     if elem_EXPD < 0.9:
+        #         prob = 0.1
+        #     else:
+        #         prob = 0.9
+        # else:
+        #     if elem_EXPD < 0.9:
+        #         prob = 0.9
+        #     else:
+        #         prob = 0.1
+
+        # selection_prob = np.dot([weight_sick, weight_treatment],[prob, elem_treat])
+        selection_prob = prob
 
         if np.random.binomial(1, selection_prob) == 0:
             continue
@@ -317,8 +324,8 @@ IST = ContToDisc(IST)
 X = 'RXASP'
 
 # Define policies
-low_prob = 0.1
-high_prob = 0.9
+low_prob = 0.01
+high_prob = 0.99
 
 pl1 = lambda age, sex: [low_prob, high_prob] if ((age == 0) and (sex == 0)) else [high_prob, low_prob]
 pl2 = lambda age, sex: [high_prob, low_prob] if ((age == 0) and (sex == 0)) else [low_prob, high_prob]
@@ -346,3 +353,13 @@ print(LB1,EY1,HB1)
 print(LB2,EY2,HB2)
 
 print(CheckCase2(HB,U))
+
+sumprob = 0
+for age in [0,1]:
+    for sex in [0,1]:
+        for x in [0,1]:
+            P_xz = len(OBS[(OBS['AGE'] == age) & (OBS['SEX'] == sex) & (OBS['RXASP']==x)]) / len(OBS)
+            pixz = pl1(age,sex)[1-x]
+            sumprob += P_xz * pixz
+            print(age,sex,x,P_xz, pixz)
+print(sumprob)
