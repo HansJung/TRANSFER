@@ -183,6 +183,40 @@ def GenEXPPl(IST,policy_list):
         listSamplePlIST[plidx] = pd.DataFrame(listSamplePlIST[plidx])
     return listSamplePlIST
 
+def GenOBS(EXP, seed_obs = 1):
+    np.random.seed(seed_obs)
+    weight_sick = 0.01
+    weight_treatment = 0.99
+
+    sample_list = []
+
+    for idx in range(len(EXP)):
+        elem = EXP.iloc[idx]
+        elem_EXPD = elem['EXPDD']
+        elem_treat = elem['RXASP']
+        
+
+        if elem_treat == 0:
+            if elem_EXPD < 0.9:
+                prob = 0.1
+            else:
+                prob = 0.9
+        else:
+            if elem_EXPD < 0.9:
+                prob = 0.9
+            else:
+                prob = 0.1
+
+        selection_prob = np.dot([weight_sick, weight_treatment],[prob, 1-elem_treat])
+
+        if np.random.binomial(1, selection_prob) == 0:
+            continue
+        else:
+            sample_list.append(elem)
+
+    OBS = pd.DataFrame(sample_list)
+    return OBS
+
 
 
 # def SeedFindingOBSPl(EXP, sample_N, policy_list, alpha=0.01): # If numPolicy = 2
@@ -259,23 +293,56 @@ def BoundsPl(OBS,pl):
     UB = LB + sum_prob_ub
     return [LB,UB]
 
+def CheckCase2(HB,U):
+    hx0, hx1 = HB
+    Ux0, Ux1 = U
+
+    if Ux0 < Ux1:
+        if hx0 < Ux1:
+            return True
+        else:
+            return False
+    else:
+        if hx1 < Ux0:
+            return True
+        else:
+            return False
 
 # Load dataset
 IST = pd.read_csv('IST.csv')
 IST = ReduceIST(IST)
 IST = IndexifyDisc(IST)
 IST = ContToDisc(IST)
-IST = HideCovarOBS(IST)
 
 X = 'RXASP'
 
 # Define policies
-low_prob = 0.01
-high_prob = 0.99
+low_prob = 0.1
+high_prob = 0.9
 
 pl1 = lambda age, sex: [low_prob, high_prob] if ((age == 0) and (sex == 0)) else [high_prob, low_prob]
 pl2 = lambda age, sex: [high_prob, low_prob] if ((age == 0) and (sex == 0)) else [low_prob, high_prob]
 policy_list = [pl1,pl2]
 
 EXP_pl1, EXP_pl2 = GenEXPPl(IST,policy_list)
+EY1 = np.mean(EXP_pl1['Y'])
+EY2 = np.mean(EXP_pl2['Y'])
+U = [EY1,EY2]
 
+# print(np.mean(EXP_pl1['Y']), ExpectedOutcomePl(EXP_pl1,pl1))
+# print(np.mean(EXP_pl2['Y']), ExpectedOutcomePl(EXP_pl2,pl2))
+
+OBS = GenOBS(IST)
+
+OBS = HideCovarOBS(OBS)
+EXP_pl1 = HideCovarOBS(EXP_pl1)
+EXP_pl2 = HideCovarOBS(EXP_pl2)
+
+LB1,HB1 = BoundsPl(OBS,pl1)
+LB2,HB2 = BoundsPl(OBS,pl2)
+HB = [HB1,HB2]
+
+print(LB1,EY1,HB1)
+print(LB2,EY2,HB2)
+
+print(CheckCase2(HB,U))
