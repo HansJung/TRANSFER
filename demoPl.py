@@ -162,7 +162,8 @@ def ttestStatGen(df,X,pl):
     return [nobs, mean_obs, std_obs, seed_num]
 
 # Gen EXP
-def GenEXPPl(IST,policy_list):
+def GenEXPPl(IST,policy_list, seed_num=123):
+    np.random.seed(seed_num)
     listSamplePlIST = []
     X = 'RXASP'
     for idx in range(len(policy_list)):
@@ -198,9 +199,9 @@ def GenOBS(EXP, seed_obs = 123):
         elem_sex = elem['SEX']
 
         if elem_age == 0 and elem_sex == 0 and elem_treat == 1:
-            prob = 0.995
+            prob = 0.9955
         else:
-            prob = 0.005
+            prob = 0.0045
 
         # if elem_treat == 0:
         #     if elem_EXPD < 0.9:
@@ -324,8 +325,8 @@ IST = ContToDisc(IST)
 X = 'RXASP'
 
 # Define policies
-low_prob = 0.01
-high_prob = 0.99
+low_prob = 0.005
+high_prob = 0.995
 
 pl1 = lambda age, sex: [low_prob, high_prob] if ((age == 0) and (sex == 0)) else [high_prob, low_prob]
 pl2 = lambda age, sex: [high_prob, low_prob] if ((age == 0) and (sex == 0)) else [low_prob, high_prob]
