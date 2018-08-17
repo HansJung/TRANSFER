@@ -258,7 +258,7 @@ def RunGenData():
     OBS = HideCovarOBS(OBS)
     listEXP = [EXP1,EXP2]
 
-    return [listEXP, OBS]
+    return [listEXP, OBS, IST]
 
 def QualityCheck(listEXP, OBS, policy_list):
     LB,U,HB = LB_U_HB(listEXP,OBS,policy_list)
@@ -270,6 +270,7 @@ def QualityCheck(listEXP, OBS, policy_list):
     print(LB1, U1, HB1)
     print(LB2, U2, HB2)
     print('CASE 2',TF_case2)
+    return [LB,U,HB]
 
 #
 # listEXP, OBS = RunGenData()

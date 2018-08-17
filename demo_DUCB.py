@@ -7,7 +7,11 @@ import itertools
 [ALGORITHM] 
 Before starting 
 
-Initial random pulling 
+Initial random pulling
+- Randomly chosen policy 
+- Pull 
+- Receive Reward 
+- Data update  
 
 Pulling  
 
@@ -59,6 +63,7 @@ ReceiveRewards
 
 '''
 def ComputePxz(OBS,age,sex,x):
+    X = 'RXASP'
     P_xz = len(OBS[(OBS['AGE'] == age) & (OBS['SEX'] == sex) & (OBS[X] == x)]) / len(OBS)
     return P_xz
 
@@ -66,12 +71,9 @@ def ComputePz(OBS,age,sex):
     Pz = len(OBS[(OBS['AGE'] == age) & (OBS['SEX'] == sex)]) / len(OBS)
     return Pz
 
-def ReceiveRewards(plidx, listPolicy, listEXP, dictlistNumPolicyArm, z):
-    pli = listPolicy[plidx]  # Probability of arm 0 and 1
-    EXPi = listEXP[plidx]  # Probability of arm 0 and 1
-    probs = pli(z[0], z[1])  # Probability of arm 0 and 1
-    armPull = np.random.binomial(1, probs[1]) # arm pull by the policy
-    reward = EXPi.iloc(dictlistNumPolicyArm[plidx][armPull])['Y']
+def ReceiveRewards(plidxChosen, armChosen, listEXP, dictlistNumPolicyArm, z):
+    EXPi = listEXP[plidxChosen]
+    reward = EXPi.iloc[dictlistNumPolicyArm[plidxChosen][armChosen]]['Y']
     return reward
 
 def ComputeMpq(p,q,OBS):
@@ -99,6 +101,9 @@ def ComputeMatM(listPolicy,OBS):
         pj = listPolicy[j]
         M_mat[k,j] = ComputeMpq(pk,pj,OBS)
     return M_mat
+
+def ObserveZ(IST,t):
+    return list(IST.iloc[t-1][['AGE', 'SEX']])
 
 def ComputeZkt(dictNumPolicy,nPolicy, M, k):
     sumval = 0
@@ -138,10 +143,78 @@ def ComputeSk(dictNumPolicy, nPolicy, M, k, t):
     Zkt = ComputeZkt(dictNumPolicy, nPolicy, M, k)
     return 1.5*np.sqrt(c1*t*np.log(t)) / Zkt
 
+def PullArmFromPl(pl,z):
+    probs = pl(z[0],z[1])
+    return np.random.binomial(1,probs[1])
 
-listEXP, OBS = GenData.RunGenData()
+def UpdateAfterArm(dictNumPolicy, dictlistNumPolicyArm,dictdictlistPolicyData,plidxChosen,armChosen,z,rewardReceived):
+    dictNumPolicy[plidxChosen] += 1
+    dictlistNumPolicyArm[plidxChosen][armChosen] += 1
+    dictdictlistPolicyData[plidxChosen]['Z'].append(z)
+    dictdictlistPolicyData[plidxChosen]['X'].append(armChosen)
+    dictdictlistPolicyData[plidxChosen]['Y'].append(rewardReceived)
+    return [dictNumPolicy,dictlistNumPolicyArm,dictdictlistPolicyData]
+
+listEXP, OBS, IST = GenData.RunGenData()
 listPolicy = GenData.PolicyGen()
-GenData.QualityCheck(listEXP,OBS,listPolicy)
-Mmat = ComputeMatM(listPolicy,OBS)
+LB,U,HB = GenData.QualityCheck(listEXP,OBS,listPolicy)
+optpl = np.argmax(U)
+uopt = U[optpl]
+
+numRound = 500
+TF_causal = False
 
 ''' Variable declaration '''
+dictNumPolicy = dict()
+dictlistNumPolicyArm = dict()
+dictdictlistPolicyData = dict()
+
+nPolicy = len(listPolicy)
+for plidx in range(nPolicy):
+    dictNumPolicy[plidx] = 0
+    dictlistNumPolicyArm[plidx] = [0,0]
+    dictdictlistPolicyData[plidx] = dict()
+    dictdictlistPolicyData[plidx]['X'] = []
+    dictdictlistPolicyData[plidx]['Y'] = []
+    dictdictlistPolicyData[plidx]['Z'] = []
+
+''' Before start'''
+Mmat = ComputeMatM(listPolicy,OBS)
+
+''' Initial pulling by choosing random '''
+t = 1
+# Observe Z
+z = ObserveZ(IST,t)
+# Choose random expert
+plidxChosen = np.random.binomial(1,0.5)
+pl = listPolicy[plidxChosen]
+# Play an arm
+armChosen = PullArmFromPl(pl,z)
+# Receive rewards
+reward = ReceiveRewards(plidxChosen,armChosen,listEXP,dictlistNumPolicyArm,z)
+# Update information
+dictNumPolicy,dictlistNumPolicyArm,dictdictlistPolicyData = \
+    UpdateAfterArm(dictNumPolicy,dictlistNumPolicyArm,dictdictlistPolicyData,plidxChosen,armChosen,z,reward)
+
+''' Play! '''
+for t in range(2,numRound):
+    # Observe Z
+    z = ObserveZ(IST,t)
+    listU = []
+    for k in range(nPolicy):
+        muk = ComputeMu(dictdictlistPolicyData,dictNumPolicy,listPolicy,Mmat,k,t)
+        sk = ComputeSk(dictNumPolicy,nPolicy,Mmat,k,t)
+        Uk = muk + sk
+        if TF_causal:
+            Uk = np.min([Uk,HB[k]])
+        listU.append(Uk)
+    # Choose Policy
+    plidxChosen = np.argmax(listU)
+    pl = listPolicy[plidxChosen]
+    # Play an arm
+    armChosen = PullArmFromPl(pl,z)
+    # Receive rewards
+    reward = ReceiveRewards(plidxChosen,armChosen,listEXP,dictlistNumPolicyArm,z)
+    # Update information
+    dictNumPolicy,dictlistNumPolicyArm,dictdictlistPolicyData = \
+        UpdateAfterArm(dictNumPolicy,dictlistNumPolicyArm,dictdictlistPolicyData,plidxChosen,armChosen,z,reward)
