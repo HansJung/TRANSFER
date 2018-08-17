@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import GenData_IST_Pl as GenData
 import itertools
+import matplotlib.pyplot as plt
 
 '''
 [ALGORITHM] 
@@ -71,9 +72,13 @@ def ComputePz(OBS,age,sex):
     Pz = len(OBS[(OBS['AGE'] == age) & (OBS['SEX'] == sex)]) / len(OBS)
     return Pz
 
-def ReceiveRewards(plidxChosen, armChosen, listEXP, dictlistNumPolicyArm, z):
+def ReceiveRewards(plidxChosen, armChosen, listEXP):
+    X = 'RXASP'
     EXPi = listEXP[plidxChosen]
-    reward = EXPi.iloc[dictlistNumPolicyArm[plidxChosen][armChosen]]['Y']
+    reward = list(EXPi[EXPi[X] == armChosen].sample(1)['Y'])[0]
+
+    # EXPi[X == armChosen]
+    # reward = EXPi.iloc[dictlistNumPolicyArm[plidxChosen][armChosen]]['Y']
     return reward
 
 def ComputeMpq(p,q,OBS):
@@ -155,66 +160,101 @@ def UpdateAfterArm(dictNumPolicy, dictlistNumPolicyArm,dictdictlistPolicyData,pl
     dictdictlistPolicyData[plidxChosen]['Y'].append(rewardReceived)
     return [dictNumPolicy,dictlistNumPolicyArm,dictdictlistPolicyData]
 
+def UpdateOptProbAfterArm(dictNumPolicy,optpl,t):
+    probOptPlChoose = dictNumPolicy[optpl]/t
+    return probOptPlChoose
+
+def RunDUCB(numRound,TF_causal):
+    ''' Variable declaration '''
+    dictNumPolicy = dict()
+    dictlistNumPolicyArm = dict()
+    dictdictlistPolicyData = dict()
+
+    probOptPlChoose = 0
+    listProbOpt = []
+
+    cummRegret = 0
+    listCummRegret = []
+
+    nPolicy = len(listPolicy)
+    for plidx in range(nPolicy):
+        dictNumPolicy[plidx] = 0
+        dictlistNumPolicyArm[plidx] = [0, 0]
+        dictdictlistPolicyData[plidx] = dict()
+        dictdictlistPolicyData[plidx]['X'] = []
+        dictdictlistPolicyData[plidx]['Y'] = []
+        dictdictlistPolicyData[plidx]['Z'] = []
+
+    ''' Before start'''
+    Mmat = ComputeMatM(listPolicy, OBS)
+
+    ''' Initial pulling by choosing random '''
+    t = 1
+    # Observe Z
+    z = ObserveZ(IST, t)
+    # Choose random expert
+    plidxChosen = np.random.binomial(1, 0.5)
+    pl = listPolicy[plidxChosen]
+    # Play an arm
+    armChosen = PullArmFromPl(pl, z)
+    # Receive rewards
+    reward = ReceiveRewards(plidxChosen, armChosen, listEXP)
+    # Update information
+    dictNumPolicy, dictlistNumPolicyArm, dictdictlistPolicyData = \
+        UpdateAfterArm(dictNumPolicy, dictlistNumPolicyArm, dictdictlistPolicyData, plidxChosen, armChosen, z, reward)
+    probOptPlChoose = UpdateOptProbAfterArm(dictNumPolicy, optpl, t)
+
+    ''' Play! '''
+    for t in range(2, numRound):
+        # Observe Z
+        z = ObserveZ(IST, t)
+        listU = []
+        for k in range(nPolicy):
+            muk = ComputeMu(dictdictlistPolicyData, dictNumPolicy, listPolicy, Mmat, k, t)
+            sk = ComputeSk(dictNumPolicy, nPolicy, Mmat, k, t)
+            Uk = muk + sk
+            if TF_causal:
+                Uk = np.min([Uk, HB[k]])
+            listU.append(Uk)
+        # Choose Policy
+        plidxChosen = np.argmax(listU)
+        pl = listPolicy[plidxChosen]
+        # Play an arm
+        armChosen = PullArmFromPl(pl, z)
+        # Receive rewards
+        reward = ReceiveRewards(plidxChosen, armChosen, listEXP)
+        # Update information
+        dictNumPolicy, dictlistNumPolicyArm, dictdictlistPolicyData = \
+            UpdateAfterArm(dictNumPolicy, dictlistNumPolicyArm, dictdictlistPolicyData, plidxChosen, armChosen, z,
+                           reward)
+        probOptPlChoose = UpdateOptProbAfterArm(dictNumPolicy, optpl, t)
+        listProbOpt.append(probOptPlChoose)
+        cummRegret += uopt - U[plidxChosen]
+        listCummRegret.append(cummRegret)
+    return [dictNumPolicy, listProbOpt, listCummRegret]
+
+
 listEXP, OBS, IST = GenData.RunGenData()
 listPolicy = GenData.PolicyGen()
 LB,U,HB = GenData.QualityCheck(listEXP,OBS,listPolicy)
 optpl = np.argmax(U)
 uopt = U[optpl]
+usubopt = U[1-optpl]
 
-numRound = 500
-TF_causal = False
+numRound = 5000
+dictNumPolicy, listProbOpt, listCummRegret = RunDUCB(numRound,TF_causal=False)
+dictNumPolicy_C, listProbOpt_C, listCummRegret_C = RunDUCB(numRound,TF_causal=True)
 
-''' Variable declaration '''
-dictNumPolicy = dict()
-dictlistNumPolicyArm = dict()
-dictdictlistPolicyData = dict()
+plt.figure(1)
+plt.title('Prob Opt')
+plt.plot(listProbOpt,label='DUCB')
+plt.plot(listProbOpt_C, label='C-DUCB')
+plt.legend()
 
-nPolicy = len(listPolicy)
-for plidx in range(nPolicy):
-    dictNumPolicy[plidx] = 0
-    dictlistNumPolicyArm[plidx] = [0,0]
-    dictdictlistPolicyData[plidx] = dict()
-    dictdictlistPolicyData[plidx]['X'] = []
-    dictdictlistPolicyData[plidx]['Y'] = []
-    dictdictlistPolicyData[plidx]['Z'] = []
+plt.figure(2)
+plt.title('Cummul. Regret')
+plt.plot(listCummRegret,label='DUCB')
+plt.plot(listCummRegret_C, label='C-DUCB')
+plt.legend()
 
-''' Before start'''
-Mmat = ComputeMatM(listPolicy,OBS)
-
-''' Initial pulling by choosing random '''
-t = 1
-# Observe Z
-z = ObserveZ(IST,t)
-# Choose random expert
-plidxChosen = np.random.binomial(1,0.5)
-pl = listPolicy[plidxChosen]
-# Play an arm
-armChosen = PullArmFromPl(pl,z)
-# Receive rewards
-reward = ReceiveRewards(plidxChosen,armChosen,listEXP,dictlistNumPolicyArm,z)
-# Update information
-dictNumPolicy,dictlistNumPolicyArm,dictdictlistPolicyData = \
-    UpdateAfterArm(dictNumPolicy,dictlistNumPolicyArm,dictdictlistPolicyData,plidxChosen,armChosen,z,reward)
-
-''' Play! '''
-for t in range(2,numRound):
-    # Observe Z
-    z = ObserveZ(IST,t)
-    listU = []
-    for k in range(nPolicy):
-        muk = ComputeMu(dictdictlistPolicyData,dictNumPolicy,listPolicy,Mmat,k,t)
-        sk = ComputeSk(dictNumPolicy,nPolicy,Mmat,k,t)
-        Uk = muk + sk
-        if TF_causal:
-            Uk = np.min([Uk,HB[k]])
-        listU.append(Uk)
-    # Choose Policy
-    plidxChosen = np.argmax(listU)
-    pl = listPolicy[plidxChosen]
-    # Play an arm
-    armChosen = PullArmFromPl(pl,z)
-    # Receive rewards
-    reward = ReceiveRewards(plidxChosen,armChosen,listEXP,dictlistNumPolicyArm,z)
-    # Update information
-    dictNumPolicy,dictlistNumPolicyArm,dictdictlistPolicyData = \
-        UpdateAfterArm(dictNumPolicy,dictlistNumPolicyArm,dictdictlistPolicyData,plidxChosen,armChosen,z,reward)
+plt.show()
