@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
-import itertools
 import copy
-from scipy.stats import ttest_ind_from_stats
 from scipy.stats import ttest_ind
 from sklearn import preprocessing
 

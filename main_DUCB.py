@@ -4,65 +4,6 @@ import GenData_IST_Pl as GenData
 import itertools
 import matplotlib.pyplot as plt
 
-'''
-[ALGORITHM] 
-Before starting 
-
-Initial random pulling
-- Randomly chosen policy 
-- Pull 
-- Receive Reward 
-- Data update  
-
-Pulling  
-
-'''
-
-'''
-[DATA]  
-dictNumPolicy
-- dict
-- key: plidx
-- val: number of policy chosen 
-
-dictlistNumPolicyArm 
-- dictlist 
-- key: plidx 
-- val: [number of pli chosen arm0, number of pli chosen arm1]
-
-dictdictlistPolicyData
-- dict(policy) of dict(X,Y,Z)
-- data[plidx] = {X:[],Y:[],Z:[]}
-- data[plidx]['X'] = []
-'''
-
-
-''' 
-[FUNCTIONS] 
-ReceiveRewards 
-    Overview
-        - Given a chosen policy (pi) and context (z) 
-        - Draw arm from the policy (x ~ pi( |z))
-        - Go to the EXPi (experimental dataset with corresponding policy)
-        - Receive policy  
-        
-    Input
-        - plidx: Chosen Policy index
-        - listPolicy: List of policies  
-        - listEXP: List of EXPs 
-        - dictlistNumPolicyArm
-        - z: observed context. 
-    Proc 
-        pli = listPolicy[plidx] # Probability of arm 0 and 1
-        EXPi = listEXP[plidx] # Probability of arm 0 and 1
-        probs = pli(z[0],z[1]) # Probability of arm 0 and 1
-        armPull = np.random.binomial(1,prob[1])
-        reward = EXPi.iloc(dictlistNumPolicyArm[plidx][armPull])['Y']
-    Output:
-        - Reward 
-
-
-'''
 def ComputePxz(OBS,age,sex,x):
     X = 'RXASP'
     P_xz = len(OBS[(OBS['AGE'] == age) & (OBS['SEX'] == sex) & (OBS[X] == x)]) / len(OBS)
@@ -233,28 +174,28 @@ def RunDUCB(numRound,TF_causal):
         listCummRegret.append(cummRegret)
     return [dictNumPolicy, listProbOpt, listCummRegret]
 
+if __name__ == '__main__':
+    listEXP, OBS, IST = GenData.RunGenData()
+    listPolicy = GenData.PolicyGen()
+    LB,U,HB = GenData.QualityCheck(listEXP,OBS,listPolicy)
+    optpl = np.argmax(U)
+    uopt = U[optpl]
+    usubopt = U[1-optpl]
 
-listEXP, OBS, IST = GenData.RunGenData()
-listPolicy = GenData.PolicyGen()
-LB,U,HB = GenData.QualityCheck(listEXP,OBS,listPolicy)
-optpl = np.argmax(U)
-uopt = U[optpl]
-usubopt = U[1-optpl]
+    numRound = 5000
+    dictNumPolicy, listProbOpt, listCummRegret = RunDUCB(numRound,TF_causal=False)
+    dictNumPolicy_C, listProbOpt_C, listCummRegret_C = RunDUCB(numRound,TF_causal=True)
 
-numRound = 5000
-dictNumPolicy, listProbOpt, listCummRegret = RunDUCB(numRound,TF_causal=False)
-dictNumPolicy_C, listProbOpt_C, listCummRegret_C = RunDUCB(numRound,TF_causal=True)
+    plt.figure(1)
+    plt.title('Prob Opt')
+    plt.plot(listProbOpt,label='DUCB')
+    plt.plot(listProbOpt_C, label='C-DUCB')
+    plt.legend()
 
-plt.figure(1)
-plt.title('Prob Opt')
-plt.plot(listProbOpt,label='DUCB')
-plt.plot(listProbOpt_C, label='C-DUCB')
-plt.legend()
+    plt.figure(2)
+    plt.title('Cummul. Regret')
+    plt.plot(listCummRegret,label='DUCB')
+    plt.plot(listCummRegret_C, label='C-DUCB')
+    plt.legend()
 
-plt.figure(2)
-plt.title('Cummul. Regret')
-plt.plot(listCummRegret,label='DUCB')
-plt.plot(listCummRegret_C, label='C-DUCB')
-plt.legend()
-
-plt.show()
+    plt.show()
