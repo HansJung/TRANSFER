@@ -139,14 +139,10 @@ def GenEXPPl(IST,policy_list, seed_num=123):
 
 def GenOBS(EXP, seed_obs = 123):
     np.random.seed(seed_obs)
-    weight_sick = 0.99
-    weight_treatment = 0.01
-
     sample_list = []
 
     for idx in range(len(EXP)):
         elem = EXP.iloc[idx]
-        elem_EXPD = elem['EXPDD']
         elem_treat = elem['RXASP']
         elem_age = elem['AGE']
         elem_sex = elem['SEX']
