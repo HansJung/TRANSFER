@@ -3,6 +3,7 @@ import numpy as np
 import GenData_IST_Pl as GenData
 import itertools
 import matplotlib.pyplot as plt
+import scipy.io
 
 def ComputePxz(OBS,age,sex,x):
     X = 'RXASP'
@@ -111,7 +112,6 @@ def RunDUCB(numRound,TF_causal):
     dictlistNumPolicyArm = dict()
     dictdictlistPolicyData = dict()
 
-    probOptPlChoose = 0
     listProbOpt = []
 
     cummRegret = 0
@@ -185,6 +185,11 @@ if __name__ == '__main__':
     numRound = 5000
     dictNumPolicy, listProbOpt, listCummRegret = RunDUCB(numRound,TF_causal=False)
     dictNumPolicy_C, listProbOpt_C, listCummRegret_C = RunDUCB(numRound,TF_causal=True)
+
+    scipy.io.savemat('listProbOpt.mat', mdict={'listProbOpt': listProbOpt})
+    scipy.io.savemat('listProbOpt_C.mat', mdict={'listProbOpt_C': listProbOpt_C})
+    scipy.io.savemat('listCummRegret.mat', mdict={'listCummRegret': listCummRegret})
+    scipy.io.savemat('listCummRegret_C.mat', mdict={'listCummRegret_C': listCummRegret_C})
 
     plt.figure(1)
     plt.title('Prob Opt')
