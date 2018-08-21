@@ -124,10 +124,10 @@ def RunBestArm(listArm, T,TF_causal):
         if CheckStopCondition(listMuEst, listUEst, ht, lt) == True:
             break
 
-        if t > T:
-            break
+        # if t > T:
+        #     break
 
-    return listH
+    return t,listH
     # print(t, ht)
 
 
@@ -148,15 +148,15 @@ print(GenData_IST.ObsEffect(EXP,'Y'))
 print(GenData_IST.ObsEffect(OBS,'Y'))
 print(CheckCase2BestArm(HB,U))
 
-listH = RunBestArm(listArm, T,TF_causal=False)
-listH_C = RunBestArm(listArm, T,TF_causal=True)
+t,listH = RunBestArm(listArm, T,TF_causal=False)
+tC, listH_C = RunBestArm(listArm, T,TF_causal=True)
 
-plt.figure(1)
-plt.title('Prob H')
-plt.plot(listH,label='BestArm')
-plt.plot(listH_C, label='C-BestArm')
-plt.legend()
-plt.show()
+# plt.figure(1)
+# plt.title('Prob H')
+# plt.plot(listH,label='BestArm')
+# plt.plot(listH_C, label='C-BestArm')
+# plt.legend()
+# plt.show()
 
 
 # # Note this parametrization satisfied the definition of U

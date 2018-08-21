@@ -35,10 +35,14 @@ def MaxKL(mu_hat, ft, NaT, init_maxval=1):
     mu = MaxBinarySearch(mu_hat, M,maxval)
     return mu
 
-def UpdateAfterArm(dictNumArm, dictlistArmReward,armChosen,reward):
+def ComputeDynamicMean(n,prevM,lastElem):
+    return ((n-1)*prevM + lastElem)/n
+
+def UpdateAfterArm(dictNumArm,dictM,dictLastElem,armChosen,reward):
     dictNumArm[armChosen] += 1
-    dictlistArmReward[armChosen].append(reward)
-    return [dictNumArm, dictlistArmReward]
+    dictLastElem[armChosen] = reward
+    dictM[armChosen] = ComputeDynamicMean(dictNumArm[armChosen], dictM[armChosen],dictLastElem[armChosen])
+    return [dictNumArm,dictM,dictLastElem]
 
 def ComputeMu(dictlistNumArmReard, armChoice):
     return np.mean(dictlistNumArmReard[armChoice])
@@ -46,20 +50,25 @@ def ComputeMu(dictlistNumArmReard, armChoice):
 def RunKLUCB(listArm, listHB, listU, numRound, TF_causal):
     ''' Definition of variable '''
     dictNumArm = dict()
-    dictlistArmReward= dict()
+    # dictlistArmReward= dict()
+    dictM = dict()
+    dictLastElem = dict()
     listTFArmCorrect = list()
     listCummRegret = list()
+
     armOpt = np.argmax(listU)
     cummRegret = 0
 
     for a in listArm:
         dictNumArm[a] = 0
-        dictlistArmReward[a] = list()
+        dictM[a] = 0
+        dictLastElem[a] = 0
+        # dictlistArmReward[a] = list()
 
     ''' Initial pulling'''
     for a in listArm:
         reward = ReceiveRewards(a,EXP)
-        dictNumArm, dictlistArmReward = UpdateAfterArm(dictNumArm,dictlistArmReward,a,reward)
+        dictNumArm, dictM, dictLastElem = UpdateAfterArm(dictNumArm,dictM,dictLastElem, a, reward)
 
     ''' Run!'''
     f = lambda x: np.log(x) + 3 * np.log(np.log(x))
@@ -68,7 +77,8 @@ def RunKLUCB(listArm, listHB, listU, numRound, TF_causal):
         # Compute the mean reward
         listUpper = list()
         for a in listArm:
-            mu_hat = ComputeMu(dictlistArmReward,a)
+            # Compute
+            mu_hat = dictM[a]
             ft = f(t)
             upper_a = MaxKL(mu_hat,ft,dictNumArm[a],init_maxval=1)
             if TF_causal:
@@ -82,24 +92,30 @@ def RunKLUCB(listArm, listHB, listU, numRound, TF_causal):
         else:
             listTFArmCorrect.append(0)
         listCummRegret.append(cummRegret)
-        dictNumArm, dictlistArmReward = UpdateAfterArm(dictNumArm, dictlistArmReward, armChosen, reward)
+        dictNumArm, dictM, dictLastElem = UpdateAfterArm(dictNumArm, dictM, dictLastElem, armChosen, reward)
 
     return listTFArmCorrect, listCummRegret
 
 def RunSimulation(numSim, numRound, TF_causal):
-    listlistTFArmCorrect = list()
-    listlistCummRegret = list()
+    arrayTFArmCorrect = np.array([0]*numRound)
+    arrayCummRegret = np.array([0]*numRound)
+    # listlistTFArmCorrect = np.array([0]*numRound)
+    # listlistCummRegret = np.array([0]*numRound)
 
     for k in range(numSim):
         print(k)
         listTFArmCorrect, listCummRegret = RunKLUCB(listArm, HB, listU, numRound, TF_causal=TF_causal)
-        listlistTFArmCorrect.append(listTFArmCorrect)
-        listlistCummRegret.append(listCummRegret)
+        arrayTFArmCorrect = arrayTFArmCorrect + np.asarray(listTFArmCorrect)
+        arrayCummRegret = arrayCummRegret + np.asarray(listCummRegret)
+        # listlistTFArmCorrect.append(listTFArmCorrect)
+        # listlistCummRegret.append(listCummRegret)
 
-    MatTFArmCorrect = np.matrix(listlistTFArmCorrect)
-    MatCummRegret = np.matrix(listlistCummRegret)
-    MeanTFArmCorrect = np.array(np.mean(MatTFArmCorrect, axis=0))[0]
-    MeanCummRegret = np.array(np.mean(MatCummRegret, axis=0))[0]
+    MeanTFArmCorrect = arrayTFArmCorrect / numSim
+    MeanCummRegret = arrayCummRegret / numSim
+    # MatTFArmCorrect = np.matrix(listlistTFArmCorrect)
+    # MatCummRegret = np.matrix(listlistCummRegret)
+    # MeanTFArmCorrect = np.array(np.mean(MatTFArmCorrect, axis=0))[0]
+    # MeanCummRegret = np.array(np.mean(MatCummRegret, axis=0))[0]
     return [MeanTFArmCorrect, MeanCummRegret]
 
 
@@ -125,7 +141,7 @@ listU = GenData_IST.ObsEffect(EXP,'Y')
 
 ''' Bandit Run!'''
 numRound = 1000
-numSim = 100
+numSim = 20
 
 listlistTFArmCorrect = list()
 listlistCummRegret = list()
