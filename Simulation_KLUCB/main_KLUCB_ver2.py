@@ -99,8 +99,6 @@ def RunKLUCB(listArm, listHB, listU, numRound, TF_causal):
 def RunSimulation(numSim, numRound, TF_causal):
     arrayTFArmCorrect = np.array([0]*numRound)
     arrayCummRegret = np.array([0]*numRound)
-    # listlistTFArmCorrect = np.array([0]*numRound)
-    # listlistCummRegret = np.array([0]*numRound)
 
     for k in range(numSim):
         print(k)
@@ -112,10 +110,6 @@ def RunSimulation(numSim, numRound, TF_causal):
 
     MeanTFArmCorrect = arrayTFArmCorrect / numSim
     MeanCummRegret = arrayCummRegret / numSim
-    # MatTFArmCorrect = np.matrix(listlistTFArmCorrect)
-    # MatCummRegret = np.matrix(listlistCummRegret)
-    # MeanTFArmCorrect = np.array(np.mean(MatTFArmCorrect, axis=0))[0]
-    # MeanCummRegret = np.array(np.mean(MatCummRegret, axis=0))[0]
     return [MeanTFArmCorrect, MeanCummRegret]
 
 

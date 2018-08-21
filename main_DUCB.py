@@ -175,20 +175,18 @@ def RunDUCB(numRound,TF_causal):
     return [listProbOpt, listCummRegret]
 
 def RunSimulation(numSim, numRound, TF_causal):
-    listlistTFPolicyCorrect = list()
-    listlistCummRegret = list()
+    arrayTFArmCorrect = np.array([0]*numRound)
+    arrayCummRegret = np.array([0]*numRound)
 
     for k in range(numSim):
         print(k)
-        listTFPolicyCorrect, listCummRegret = RunDUCB(numRound,TF_causal)
-        listlistTFPolicyCorrect.append(listTFPolicyCorrect)
-        listlistCummRegret.append(listCummRegret)
+        listTFArmCorrect, listCummRegret = RunDUCB(numRound,TF_causal)
+        arrayTFArmCorrect = arrayTFArmCorrect + np.asarray(listTFArmCorrect)
+        arrayCummRegret = arrayCummRegret + np.asarray(listCummRegret)
 
-    MatTFPolicyCorrect = np.matrix(listlistTFPolicyCorrect)
-    MatCummRegret = np.matrix(listlistCummRegret)
-    MeanTFPolicyCorrect = np.array(np.mean(MatTFPolicyCorrect, axis=0))[0]
-    MeanCummRegret = np.array(np.mean(MatCummRegret, axis=0))[0]
-    return [MeanTFPolicyCorrect, MeanCummRegret]
+    MeanTFArmCorrect = arrayTFArmCorrect / numSim
+    MeanCummRegret = arrayCummRegret / numSim
+    return [MeanTFArmCorrect, MeanCummRegret]
 
 # if __name__ == '__main__':
 listEXP, OBS, IST = GenData.RunGenData()
