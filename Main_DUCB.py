@@ -172,52 +172,52 @@ def RunDUCB(numRound,TF_causal):
         listProbOpt.append(probOptPlChoose)
         cummRegret += uopt - U[plidxChosen]
         listCummRegret.append(cummRegret)
-    return [dictNumPolicy, listProbOpt, listCummRegret]
+    return [listProbOpt, listCummRegret]
 
 def RunSimulation(numSim, numRound, TF_causal):
-    listlistTFArmCorrect = list()
+    listlistTFPolicyCorrect = list()
     listlistCummRegret = list()
 
     for k in range(numSim):
         print(k)
-        listTFArmCorrect, listCummRegret = RunDUCB(numRound,TF_causal=TF_causal)
-        listlistTFArmCorrect.append(listTFArmCorrect)
+        listTFPolicyCorrect, listCummRegret = RunDUCB(numRound,TF_causal)
+        listlistTFPolicyCorrect.append(listTFPolicyCorrect)
         listlistCummRegret.append(listCummRegret)
 
-    MatTFArmCorrect = np.matrix(listlistTFArmCorrect)
+    MatTFPolicyCorrect = np.matrix(listlistTFPolicyCorrect)
     MatCummRegret = np.matrix(listlistCummRegret)
-    MeanTFArmCorrect = np.array(np.mean(MatTFArmCorrect, axis=0))[0]
+    MeanTFPolicyCorrect = np.array(np.mean(MatTFPolicyCorrect, axis=0))[0]
     MeanCummRegret = np.array(np.mean(MatCummRegret, axis=0))[0]
-    return [MeanTFArmCorrect, MeanCummRegret]
+    return [MeanTFPolicyCorrect, MeanCummRegret]
 
-if __name__ == '__main__':
-    listEXP, OBS, IST = GenData.RunGenData()
-    listPolicy = GenData.PolicyGen()
-    LB,U,HB = GenData.QualityCheck(listEXP,OBS,listPolicy)
-    optpl = np.argmax(U)
-    uopt = U[optpl]
-    usubopt = U[1-optpl]
+# if __name__ == '__main__':
+listEXP, OBS, IST = GenData.RunGenData()
+listPolicy = GenData.PolicyGen()
+LB,U,HB = GenData.QualityCheck(listEXP,OBS,listPolicy)
+optpl = np.argmax(U)
+uopt = U[optpl]
+usubopt = U[1-optpl]
 
-    numRound = 5000
-    numSim = 20
-    MeanTFArmCorrect, MeanCummRegret = RunSimulation(numSim, numRound, TF_causal=False)
-    MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim, numRound, TF_causal=True)
+numRound = 500
+numSim = 100
+MeanTFArmCorrect, MeanCummRegret = RunSimulation(numSim, numRound, TF_causal=False)
+MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim, numRound, TF_causal=True)
 
-    # scipy.io.savemat('listProbOpt.mat', mdict={'listProbOpt': listProbOpt})
-    # scipy.io.savemat('listProbOpt_C.mat', mdict={'listProbOpt_C': listProbOpt_C})
-    # scipy.io.savemat('listCummRegret.mat', mdict={'listCummRegret': listCummRegret})
-    # scipy.io.savemat('listCummRegret_C.mat', mdict={'listCummRegret_C': listCummRegret_C})
+# scipy.io.savemat('listProbOpt.mat', mdict={'listProbOpt': listProbOpt})
+# scipy.io.savemat('listProbOpt_C.mat', mdict={'listProbOpt_C': listProbOpt_C})
+# scipy.io.savemat('listCummRegret.mat', mdict={'listCummRegret': listCummRegret})
+# scipy.io.savemat('listCummRegret_C.mat', mdict={'listCummRegret_C': listCummRegret_C})
 
-    plt.figure(1)
-    plt.title('Prob Opt')
-    plt.plot(MeanTFArmCorrect, label='DUCB')
-    plt.plot(MeanTFArmCorrect_C, label='C-DUCB')
-    plt.legend()
+plt.figure(1)
+plt.title('Prob Opt')
+plt.plot(MeanTFArmCorrect, label='DUCB')
+plt.plot(MeanTFArmCorrect_C, label='C-DUCB')
+plt.legend()
 
-    plt.figure(2)
-    plt.title('Cummul. Regret')
-    plt.plot(MeanCummRegret, label='DUCB')
-    plt.plot(MeanCummRegret_C, label='C-DUCB')
-    plt.legend()
+plt.figure(2)
+plt.title('Cummul. Regret')
+plt.plot(MeanCummRegret, label='DUCB')
+plt.plot(MeanCummRegret_C, label='C-DUCB')
+plt.legend()
 
-    plt.show()
+plt.show()

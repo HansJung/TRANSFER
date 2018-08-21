@@ -124,8 +124,8 @@ listU = GenData_IST.ObsEffect(EXP,'Y')
 # OBS = GenData_IST.ChangeRXASPtoX(OBS,idx_X=2)
 
 ''' Bandit Run!'''
-numRound = 10000
-numSim = 200
+numRound = 1000
+numSim = 100
 
 listlistTFArmCorrect = list()
 listlistCummRegret = list()
