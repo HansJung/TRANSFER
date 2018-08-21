@@ -44,13 +44,8 @@ def CheckCase2BestArm(HB,U):
 
 
 def UpperConfidence(t,delta,eps,numArm):
-    part1 = 1+np.sqrt(eps)
-    part2 = (1+delta/numArm)*t
-    part2 = np.log(part2)
-    part2 = numArm/delta*part2
-    part2 = (1+eps) * part2
-    part3 = 2*t
-    return part1 * np.sqrt(part2/part3)
+    val = (1 + np.sqrt(eps)) * np.sqrt((1 + eps) * np.log(np.log((1 + eps) * t) / delta) / (2 * t))
+    return val
 
 def ReceiveReward(armChosen, EXP):
     reward = list(EXP[EXP[X] == armChosen].sample(1)['Y'])[0]
@@ -71,7 +66,7 @@ def CheckStopCondition(listMuEst,listUEst,ht,lt):
     else:
         return False
 
-def RunBestArm(listArm, T,TF_causal):
+def RunBestArm(listArm, TF_causal):
     # Note this parametrization satisfied the definition of U
     eps = 0.01
     delta = 0.01  # (1-delta) is a confidence interval
@@ -89,7 +84,7 @@ def RunBestArm(listArm, T,TF_causal):
     # dictNumArmH = dict()
 
     for a in listArm:
-        dictNumArm[a] = 0
+        dictNumArm[a] = 1
         dictM[a] = 0
         dictLastElem[a] = 0
 
@@ -117,6 +112,7 @@ def RunBestArm(listArm, T,TF_causal):
                 listUpperEst.append(min(muEst_a + U_a, HB[a]))
             else:
                 listUpperEst.append(muEst_a + U_a)
+        # print(t,listMuEst,listUpperEst)
         ht, lt = FindMax2Idx(listUpperEst)
         listH.append(ht)
         probOpt = dictNumArm[optarm] / (t - 2)
@@ -154,8 +150,8 @@ print(GenData_IST.ObsEffect(EXP,'Y'))
 print(GenData_IST.ObsEffect(OBS,'Y'))
 print(CheckCase2BestArm(HB,U))
 
-t= RunBestArm(listArm, T,TF_causal=False)
-tC= RunBestArm(listArm, T,TF_causal=True)
+t= RunBestArm(listArm, TF_causal=False)
+tC= RunBestArm(listArm, TF_causal=True)
 
 
 

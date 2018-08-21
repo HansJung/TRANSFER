@@ -50,7 +50,8 @@ def ComputeMatM(listPolicy,OBS):
     return M_mat
 
 def ObserveZ(IST,t):
-    return list(IST.iloc[t-1][['AGE', 'SEX']])
+    return list(IST.sample(1)[['AGE','SEX']])
+    # return list(IST.iloc[t-1][['AGE', 'SEX']])
 
 def ComputeZkt(dictNumPolicy,nPolicy, M, k):
     sumval = 0
@@ -196,8 +197,8 @@ optpl = np.argmax(U)
 uopt = U[optpl]
 usubopt = U[1-optpl]
 
-numRound = 500
-numSim = 100
+numRound = 50000
+numSim = 1
 MeanTFArmCorrect, MeanCummRegret = RunSimulation(numSim, numRound, TF_causal=False)
 MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim, numRound, TF_causal=True)
 

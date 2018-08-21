@@ -2,6 +2,8 @@ import numpy as np
 import copy
 from Simulation_KLUCB import GenData_IST
 import matplotlib.pyplot as plt
+import pickle
+import scipy.io
 
 def ReceiveRewards(armChosen, EXP):
     X = 'RXASP'
@@ -134,14 +136,25 @@ listU = GenData_IST.ObsEffect(EXP,'Y')
 # OBS = GenData_IST.ChangeRXASPtoX(OBS,idx_X=2)
 
 ''' Bandit Run!'''
-numRound = 1000
-numSim = 20
+numRound = 10000
+numSim = 300
 
 listlistTFArmCorrect = list()
 listlistCummRegret = list()
 
 MeanTFArmCorrect, MeanCummRegret = RunSimulation(numSim,numRound,TF_causal=False)
 MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim,numRound,TF_causal=True)
+
+# pickle.dump(MeanTFArmCorrect,open('MeanTFArmCorrect.pkl','wb'))
+# pickle.dump(MeanCummRegret,open('MeanCummRegret.pkl','wb'))
+# pickle.dump(MeanTFArmCorrect_C,open('MeanTFArmCorrect_C.pkl','wb'))
+# pickle.dump(MeanCummRegret_C,open('MeanCummRegret_C.pkl','wb'))
+#
+# scipy.io.savemat('MeanTFArmCorrect.mat', mdict={'MeanTFArmCorrect': MeanTFArmCorrect})
+# scipy.io.savemat('MeanCummRegret.mat', mdict={'MeanCummRegret': MeanCummRegret})
+# scipy.io.savemat('MeanTFArmCorrect_C.mat', mdict={'MeanTFArmCorrect_C': MeanTFArmCorrect_C})
+# scipy.io.savemat('MeanCummRegret_C.mat', mdict={'MeanCummRegret_C': MeanCummRegret_C})
+
 
 plt.figure(1)
 plt.title('Prob Opt')
