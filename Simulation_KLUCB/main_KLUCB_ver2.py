@@ -1,8 +1,5 @@
 import numpy as np
 import copy
-from scipy.optimize import minimize
-from UCB import UCB
-from Simulation_KLUCB.KLUCB import KLUCB
 from Simulation_KLUCB import GenData_IST
 import matplotlib.pyplot as plt
 
@@ -127,8 +124,8 @@ listU = GenData_IST.ObsEffect(EXP,'Y')
 # OBS = GenData_IST.ChangeRXASPtoX(OBS,idx_X=2)
 
 ''' Bandit Run!'''
-numRound = 5000
-numSim = 100
+numRound = 10000
+numSim = 200
 
 listlistTFArmCorrect = list()
 listlistCummRegret = list()
