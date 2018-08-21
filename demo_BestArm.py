@@ -67,7 +67,68 @@ def CheckStopCondition(listMuEst,listUEst,ht,lt):
     else:
         return False
 
+def RunBestArm(listArm, T,TF_causal):
+    # Note this parametrization satisfied the definition of U
+    eps = 0.01
+    delta = 0.01  # (1-delta) is a confidence interval
+    # f = lambda eps: np.log(1+eps)/np.e
 
+    # Declaration of variable
+    numArm = len(listArm)
+    listH = list()
+    listProbOpt = list()
+    dictNumArm = dict()
+    dictlistArmReward = dict()
+    dictNumArmH = dict()
+
+    for a in listArm:
+        dictNumArm[a] = 0
+        dictNumArmH[a] = 0
+        dictlistArmReward[a] = list()
+
+    # Initialization
+    t = 0
+    for a in listArm:
+        t += 1
+        reward = ReceiveReward(a, EXP)
+        dictNumArm, dictlistArmReward = UpdateAfterArm(dictNumArm, dictlistArmReward, a, reward)
+
+    # Start
+    print("")
+    print("BestArm Start")
+    while 1:
+        t += 1
+        listUpperEst = list()
+        listMuEst = list()
+        listUEst = list()
+        for a in listArm:
+            muEst_a = np.mean(dictlistArmReward[a])
+            listMuEst.append(muEst_a)
+            U_a = UpperConfidence(dictNumArm[a], delta, eps, numArm)
+            listUEst.append(U_a)
+            if TF_causal == True:
+                listUpperEst.append(min(muEst_a + U_a, HB[a]))
+            else:
+                listUpperEst.append(muEst_a + U_a)
+        ht, lt = FindMax2Idx(listUpperEst)
+        dictNumArmH[ht] += 1
+        listH.append(ht)
+        probOpt = dictNumArmH[optarm] / (t - 2)
+        listProbOpt.append(probOpt)
+
+        for a in [ht, lt]:
+            reward = ReceiveReward(a, EXP)
+            dictNumArm, dictlistArmReward = UpdateAfterArm(dictNumArm, dictlistArmReward, a, reward)
+        if t % 1000 == 0:
+            print(t, ht, listMuEst[ht] - listUEst[ht], listMuEst[lt] + listUEst[lt])
+        if CheckStopCondition(listMuEst, listUEst, ht, lt) == True:
+            break
+
+        if t > T:
+            break
+
+    return listH
+    # print(t, ht)
 
 
 X = 'RXASP'
@@ -87,72 +148,82 @@ print(GenData_IST.ObsEffect(EXP,'Y'))
 print(GenData_IST.ObsEffect(OBS,'Y'))
 print(CheckCase2BestArm(HB,U))
 
+listH = RunBestArm(listArm, T,TF_causal=False)
+listH_C = RunBestArm(listArm, T,TF_causal=True)
 
-# Note this parametrization satisfied the definition of U
-eps = 0.01
-delta = 0.01 # (1-delta) is a confidence interval
-# f = lambda eps: np.log(1+eps)/np.e
-
-# Declaration of variable
-numArm = len(listArm)
-listH = list()
-listProbOpt = list()
-dictNumArm = dict()
-dictlistArmReward = dict()
-dictNumArmH = dict()
-
-TF_causal = True
-
-for a in listArm:
-    dictNumArm[a] = 0
-    dictNumArmH[a] = 0
-    dictlistArmReward[a] = list()
+plt.figure(1)
+plt.title('Prob H')
+plt.plot(listH,label='BestArm')
+plt.plot(listH_C, label='C-BestArm')
+plt.legend()
+plt.show()
 
 
-# Initialization
-t = 0
-for a in listArm:
-    t += 1
-    reward = ReceiveReward(a,EXP)
-    dictNumArm, dictlistArmReward = UpdateAfterArm(dictNumArm,dictlistArmReward,a,reward)
-
-# Start
-print("")
-print("BestArm Start")
-while 1:
-    t += 1
-    listUpperEst = list()
-    listMuEst = list()
-    listUEst = list()
-    for a in listArm:
-        muEst_a = np.mean(dictlistArmReward[a])
-        listMuEst.append(muEst_a)
-        U_a = UpperConfidence(dictNumArm[a],delta, eps, numArm)
-        listUEst.append(U_a)
-        if TF_causal == True:
-            listUpperEst.append(min(muEst_a + U_a,HB[a]))
-        else:
-            listUpperEst.append(muEst_a + U_a)
-    ht,lt = FindMax2Idx(listUpperEst)
-    dictNumArmH[ht] += 1
-    listH.append(ht)
-    probOpt = dictNumArmH[optarm]/(t-2)
-    listProbOpt.append(probOpt)
-
-    for a in [ht,lt]:
-        reward = ReceiveReward(a, EXP)
-        dictNumArm, dictlistArmReward = UpdateAfterArm(dictNumArm, dictlistArmReward, a, reward)
-    if t % 1000 == 0:
-        print(t,ht,listMuEst[ht]-listUEst[ht], listMuEst[lt]+listUEst[lt])
-    if CheckStopCondition(listMuEst,listUEst,ht,lt) == True:
-        break
-
-    if t > 1000:
-        break
-    # if t > 100:
-    #     break
-
-print(t,ht)
+# # Note this parametrization satisfied the definition of U
+# eps = 0.01
+# delta = 0.01 # (1-delta) is a confidence interval
+# # f = lambda eps: np.log(1+eps)/np.e
+#
+# # Declaration of variable
+# numArm = len(listArm)
+# listH = list()
+# listProbOpt = list()
+# dictNumArm = dict()
+# dictlistArmReward = dict()
+# dictNumArmH = dict()
+#
+# TF_causal = True
+#
+# for a in listArm:
+#     dictNumArm[a] = 0
+#     dictNumArmH[a] = 0
+#     dictlistArmReward[a] = list()
+#
+#
+# # Initialization
+# t = 0
+# for a in listArm:
+#     t += 1
+#     reward = ReceiveReward(a,EXP)
+#     dictNumArm, dictlistArmReward = UpdateAfterArm(dictNumArm,dictlistArmReward,a,reward)
+#
+# # Start
+# print("")
+# print("BestArm Start")
+# while 1:
+#     t += 1
+#     listUpperEst = list()
+#     listMuEst = list()
+#     listUEst = list()
+#     for a in listArm:
+#         muEst_a = np.mean(dictlistArmReward[a])
+#         listMuEst.append(muEst_a)
+#         U_a = UpperConfidence(dictNumArm[a],delta, eps, numArm)
+#         listUEst.append(U_a)
+#         if TF_causal == True:
+#             listUpperEst.append(min(muEst_a + U_a,HB[a]))
+#         else:
+#             listUpperEst.append(muEst_a + U_a)
+#     ht,lt = FindMax2Idx(listUpperEst)
+#     dictNumArmH[ht] += 1
+#     listH.append(ht)
+#     probOpt = dictNumArmH[optarm]/(t-2)
+#     listProbOpt.append(probOpt)
+#
+#     for a in [ht,lt]:
+#         reward = ReceiveReward(a, EXP)
+#         dictNumArm, dictlistArmReward = UpdateAfterArm(dictNumArm, dictlistArmReward, a, reward)
+#     if t % 1000 == 0:
+#         print(t,ht,listMuEst[ht]-listUEst[ht], listMuEst[lt]+listUEst[lt])
+#     if CheckStopCondition(listMuEst,listUEst,ht,lt) == True:
+#         break
+#
+#     if t > 1000:
+#         break
+#     # if t > 100:
+#     #     break
+#
+# print(t,ht)
 
 
 
