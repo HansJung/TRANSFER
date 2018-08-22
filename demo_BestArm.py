@@ -106,17 +106,17 @@ def RunBestArm(listArm, TF_causal):
         for a in listArm:
             muEst_a = dictM[a]
             listMuEst.append(muEst_a)
-            U_a = UpperConfidence(dictNumArm[a], delta, eps, numArm)
+            U_a = UpperConfidence(dictNumArm[a], delta/numArm, eps, numArm)
             listUEst.append(U_a)
             if TF_causal == True:
                 listUpperEst.append(min(muEst_a + U_a, HB[a]))
             else:
                 listUpperEst.append(muEst_a + U_a)
         # print(t,listMuEst,listUpperEst)
-        ht, lt = FindMax2Idx(listUpperEst)
-        listH.append(ht)
+        ht, lt = FindMax2Idx(listMuEst)
+        # listH.append(ht)
         probOpt = dictNumArm[optarm] / (t - 2)
-        listProbOpt.append(probOpt)
+        # listProbOpt.append(probOpt)
 
         for a in [ht, lt]:
             reward = ReceiveReward(a, EXP)
@@ -137,7 +137,7 @@ X = 'RXASP'
 K = 1
 T = 5500
 listArm = [0,1]
-EXP,OBS = GenData_IST.RunGenData()
+IST, EXP,OBS = GenData_IST.RunGenData()
 LB,HB = GenData_IST.ComputeBound(OBS,X)
 U = ComputeMu(EXP,listArm)
 if U[0] > U[1]:

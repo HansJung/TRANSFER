@@ -14,6 +14,11 @@ def ComputePz(OBS,age,sex):
     Pz = len(OBS[(OBS['AGE'] == age) & (OBS['SEX'] == sex)]) / len(OBS)
     return Pz
 
+def ReceiveRewardsSim(armChosen,listU):
+    ua = listU[armChosen]
+    reward = np.random.binomial(1,ua)
+    return reward
+
 def ReceiveRewards(plidxChosen, armChosen, listEXP):
     X = 'RXASP'
     EXPi = listEXP[plidxChosen]
@@ -59,6 +64,28 @@ def ComputeZkt(dictNumPolicy,nPolicy, M, k):
         Mkj = M[k,j]
         sumval += dictNumPolicy[j] / Mkj
     return sumval
+
+def ComputeDynamicMu(listPolicy, dictLastElem):
+    eps = lambda t: 2 / (t ** 2)
+    block = lambda t: 2 * np.log(2 / eps(t))
+
+def ComputeMuElem(xjs,yjs,zjs,k,j,listPolicy,M,t):
+    eps = lambda t: 2 / (t ** 2)
+    block = lambda t: 2 * np.log(2 / eps(t))
+    Mkj = M[k, j]
+    blockval = block(t) * Mkj
+
+    pik = listPolicy[k]
+    pij = listPolicy[j]
+
+    invval = (pik(zjs[0], zjs[1])[xjs] / pij(zjs[0], zjs[1])[xjs])
+    if invval <= blockval:
+        result = (1 / Mkj) * yjs * invval
+    else:
+        result = 0
+    return result
+
+
 
 def ComputeMu(dictdictlistPolicyData, dictNumPolicy, listPolicy, M,k,t):
     eps = lambda t: 2/(t**2)
@@ -110,6 +137,7 @@ def UpdateOptProbAfterArm(dictNumPolicy,optpl,t):
 def RunDUCB(numRound,TF_causal):
     ''' Variable declaration '''
     dictNumPolicy = dict()
+    dictLastElem = dict()
     dictlistNumPolicyArm = dict()
     dictdictlistPolicyData = dict()
 
@@ -121,6 +149,7 @@ def RunDUCB(numRound,TF_causal):
     nPolicy = len(listPolicy)
     for plidx in range(nPolicy):
         dictNumPolicy[plidx] = 0
+        dictLastElem[plidx] = 0
         dictlistNumPolicyArm[plidx] = [0, 0]
         dictdictlistPolicyData[plidx] = dict()
         dictdictlistPolicyData[plidx]['X'] = []
@@ -135,29 +164,43 @@ def RunDUCB(numRound,TF_causal):
     # Observe Z
     z = ObserveZ(IST, t)
     # Choose random expert
-    plidxChosen = np.random.binomial(1, 0.5)
+    plidxChosen = np.random.binomial(1, 0.5) # this is initial j
     pl = listPolicy[plidxChosen]
     # Play an arm
     armChosen = PullArmFromPl(pl, z)
     # Receive rewards
     reward = ReceiveRewards(plidxChosen, armChosen, listEXP)
+
     # Update information
     dictNumPolicy, dictlistNumPolicyArm, dictdictlistPolicyData = \
         UpdateAfterArm(dictNumPolicy, dictlistNumPolicyArm, dictdictlistPolicyData, plidxChosen, armChosen, z, reward)
+
+    ## Update
+    for k in range(nPolicy):
+        # Zkt = ComputeZkt(dictNumPolicy, nPolicy, Mmat, k)
+        dictLastElem[k] = ComputeMuElem(xjs=armChosen,yjs=reward,zjs=z,k=k,j=plidxChosen,listPolicy=listPolicy,M=Mmat,t=t)
     probOptPlChoose = UpdateOptProbAfterArm(dictNumPolicy, optpl, t)
 
     ''' Play! '''
-    for t in range(2, numRound):
+    for t in range(2, numRound+2):
+        if t % 1000 == 0:
+            print(t)
         # Observe Z
         z = ObserveZ(IST, t)
         listU = []
         for k in range(nPolicy):
-            muk = ComputeMu(dictdictlistPolicyData, dictNumPolicy, listPolicy, Mmat, k, t)
+            muk = 0
+            Zkt = ComputeZkt(dictNumPolicy, nPolicy, Mmat, k)
+            for j in range(nPolicy):
+                muk += dictLastElem[j]
+            muk = muk/Zkt
+            # muk = ComputeMu(dictdictlistPolicyData, dictNumPolicy, listPolicy, Mmat, k, t)
             sk = ComputeSk(dictNumPolicy, nPolicy, Mmat, k, t)
             Uk = muk + sk
             if TF_causal:
                 Uk = np.min([Uk, HB[k]])
             listU.append(Uk)
+
         # Choose Policy
         plidxChosen = np.argmax(listU)
         pl = listPolicy[plidxChosen]
@@ -169,6 +212,17 @@ def RunDUCB(numRound,TF_causal):
         dictNumPolicy, dictlistNumPolicyArm, dictdictlistPolicyData = \
             UpdateAfterArm(dictNumPolicy, dictlistNumPolicyArm, dictdictlistPolicyData, plidxChosen, armChosen, z,
                            reward)
+        ## Update
+        for k in range(nPolicy):
+            # Zkt = ComputeZkt(dictNumPolicy, nPolicy, Mmat, k)
+            dictLastElem[k] += ComputeMuElem(xjs=armChosen, yjs=reward, zjs=z, k=k, j=plidxChosen, listPolicy=listPolicy,
+                                            M=Mmat, t=t)
+
+        sumval = 0
+        for j in range(nPolicy):
+            sumval += dictLastElem[j]
+
+
         probOptPlChoose = UpdateOptProbAfterArm(dictNumPolicy, optpl, t)
         listProbOpt.append(probOptPlChoose)
         cummRegret += uopt - U[plidxChosen]
@@ -197,7 +251,7 @@ optpl = np.argmax(U)
 uopt = U[optpl]
 usubopt = U[1-optpl]
 
-numRound = 50000
+numRound = 500000
 numSim = 1
 MeanTFArmCorrect, MeanCummRegret = RunSimulation(numSim, numRound, TF_causal=False)
 MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim, numRound, TF_causal=True)

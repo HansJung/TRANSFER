@@ -171,6 +171,13 @@ def GenOBS(EXP, seed_obs = 1):
     OBS = pd.DataFrame(sample_list)
     return OBS
 
+def HideCovarDF(DF):
+    selected_covariates = ['AGE', 'SEX', 'RXASP', 'Y']
+
+    ## Resulting dataset
+    DF = DF[selected_covariates]
+    return DF
+
 def HideCovarOBS(EXP,OBS):
     selected_covariates = ['AGE', 'SEX', 'RXASP', 'Y']
 
@@ -258,9 +265,11 @@ def RunGenData(sample_N=12000, remember_seed = 1444260861):
     OBS = GenOBS(EXP)
 
     EXP, OBS = HideCovarOBS(EXP, OBS)
+    IST = HideCovarDF(IST)
+
     # EXP = ChangeRXASPtoX(EXP)
     # OBS = ChangeRXASPtoX(OBS)
-    return [EXP,OBS]
+    return [IST, EXP,OBS]
 
 def QualityCheck(EXP,OBS,X,TF_emp = False,delta=0.01):
     if TF_emp:

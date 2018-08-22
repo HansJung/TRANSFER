@@ -5,21 +5,37 @@ import matplotlib.pyplot as plt
 import pickle
 import scipy.io
 
+def ReceiveRewardsSim(armChosen,listU):
+    ua = listU[armChosen]
+    reward = np.random.binomial(1,ua)
+    return reward
+
+
 def ReceiveRewards(armChosen, EXP):
     X = 'RXASP'
     reward = list(EXP[EXP[X] == armChosen].sample(1)['Y'])[0]
     return reward
 
 def BinoKL(mu_hat, mu):
-    return mu_hat * np.log(mu_hat / mu) + (1 - mu_hat) * np.log((1 - mu_hat) / (1 - mu))
+    if mu_hat == mu:
+        return 0
+    else:
+        result = mu_hat * np.log(mu_hat / mu) + (1 - mu_hat) * np.log((1 - mu_hat) / (1 - mu))
+    return result
 
 def MaxBinarySearch(mu_hat, M, maxval):
     terminal_cond = 1e-8
+    eps = 1e-12
+    if mu_hat == 1:
+        return 1
+    elif mu_hat == 0:
+        mu_hat += eps
     mu = copy.copy(mu_hat)
     while 1:
         mu_cand = (mu + maxval) / 2
         KL_val = BinoKL(mu_hat, mu_cand)
         diff = np.abs(KL_val - M)
+        # print(mu, mu_hat, mu_cand,KL_val, M, diff)
         if KL_val < M:
             if diff < terminal_cond:
                 mu = mu_cand
@@ -49,7 +65,7 @@ def UpdateAfterArm(dictNumArm,dictM,dictLastElem,armChosen,reward):
 def ComputeMu(dictlistNumArmReard, armChoice):
     return np.mean(dictlistNumArmReard[armChoice])
 
-def RunKLUCB(listArm, listHB, listU, numRound, TF_causal):
+def RunKLUCB(listArm, listHB, listU, numRound, TF_causal, TF_sim):
     ''' Definition of variable '''
     dictNumArm = dict()
     # dictlistArmReward= dict()
@@ -69,7 +85,10 @@ def RunKLUCB(listArm, listHB, listU, numRound, TF_causal):
 
     ''' Initial pulling'''
     for a in listArm:
-        reward = ReceiveRewards(a,EXP)
+        if TF_sim == True:
+            reward = ReceiveRewardsSim(a, listU)
+        else:
+            reward = ReceiveRewards(a,EXP)
         dictNumArm, dictM, dictLastElem = UpdateAfterArm(dictNumArm,dictM,dictLastElem, a, reward)
 
     ''' Run!'''
@@ -82,12 +101,17 @@ def RunKLUCB(listArm, listHB, listU, numRound, TF_causal):
             # Compute
             mu_hat = dictM[a]
             ft = f(t)
+            # print(t, a, mu_hat, ft, dictNumArm[a])
             upper_a = MaxKL(mu_hat,ft,dictNumArm[a],init_maxval=1)
             if TF_causal:
                 upper_a = np.min([listHB[a], upper_a])
             listUpper.append(upper_a)
+        # print(t,listUpper)
         armChosen = np.argmax(listUpper)
-        reward = ReceiveRewards(armChosen, EXP)
+        if TF_sim == True:
+            reward = ReceiveRewardsSim(armChosen, listU)
+        else:
+            reward = ReceiveRewards(armChosen, EXP)
         cummRegret += listU[armOpt] - listU[armChosen]
         if armChosen == armOpt:
             listTFArmCorrect.append(1)
@@ -98,13 +122,13 @@ def RunKLUCB(listArm, listHB, listU, numRound, TF_causal):
 
     return listTFArmCorrect, listCummRegret
 
-def RunSimulation(numSim, numRound, TF_causal):
+def RunSimulation(numSim, numRound, TF_causal,TF_sim):
     arrayTFArmCorrect = np.array([0]*numRound)
     arrayCummRegret = np.array([0]*numRound)
 
     for k in range(numSim):
         print(k)
-        listTFArmCorrect, listCummRegret = RunKLUCB(listArm, HB, listU, numRound, TF_causal=TF_causal)
+        listTFArmCorrect, listCummRegret = RunKLUCB(listArm, HB, listU, numRound, TF_causal=TF_causal, TF_sim = TF_sim)
         arrayTFArmCorrect = arrayTFArmCorrect + np.asarray(listTFArmCorrect)
         arrayCummRegret = arrayCummRegret + np.asarray(listCummRegret)
         # listlistTFArmCorrect.append(listTFArmCorrect)
@@ -117,7 +141,7 @@ def RunSimulation(numSim, numRound, TF_causal):
 
 
 X = 'RXASP'
-EXP,OBS = GenData_IST.RunGenData()
+IST, EXP,OBS = GenData_IST.RunGenData()
 print(GenData_IST.QualityCheck(EXP,OBS,X,TF_emp=True))
 print("")
 print(GenData_IST.QualityCheck(EXP,OBS,X,TF_emp=False))
@@ -132,18 +156,26 @@ bound_list = [[lx0,hx0],[lx1,hx1]]
 listArm = [0,1]
 listU = GenData_IST.ObsEffect(EXP,'Y')
 
-# EXP = GenData_IST.ChangeRXASPtoX(EXP,idx_X=2)
-# OBS = GenData_IST.ChangeRXASPtoX(OBS,idx_X=2)
 
 ''' Bandit Run!'''
-numRound = 10000
-numSim = 300
+TF_sim = True
+numRound = 5000
+numSim = 200
+
+if TF_sim == True:
+    LB = [0.03, 0.21]
+    HB = [0.76, 0.51]
+    listU = [0.66,0.36]
 
 listlistTFArmCorrect = list()
 listlistCummRegret = list()
 
-MeanTFArmCorrect, MeanCummRegret = RunSimulation(numSim,numRound,TF_causal=False)
-MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim,numRound,TF_causal=True)
+print("")
+print("Bandit Start")
+MeanTFArmCorrect, MeanCummRegret = RunSimulation(numSim,numRound,TF_causal=False, TF_sim=TF_sim)
+print("-"*100)
+print("")
+MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim,numRound,TF_causal=True,TF_sim=TF_sim)
 
 # pickle.dump(MeanTFArmCorrect,open('MeanTFArmCorrect.pkl','wb'))
 # pickle.dump(MeanCummRegret,open('MeanCummRegret.pkl','wb'))
@@ -169,3 +201,13 @@ plt.plot(MeanCummRegret_C, label='B-KLUCB')
 plt.legend()
 
 plt.show()
+
+# for age in [0,1]:
+#     for sex in [0,1]:
+#         print(len(OBS[(OBS['AGE']==age)&(OBS['SEX']==sex)])/len(OBS))
+
+# for age in [0,1]:
+#     for sex in [0,1]:
+#         for x in [0,1]:
+#             EYx_z = np.mean(EXP[(EXP['AGE']==age)&(EXP['SEX']==sex) & (EXP['RXASP']==x)]['Y'])
+#             print('E[Yx|z]=',EYx_z, 'where X =',x,', Z =','(',age,sex,')')
