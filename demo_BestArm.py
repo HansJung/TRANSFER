@@ -43,9 +43,14 @@ def CheckCase2BestArm(HB,U):
             return False
 
 
-def UpperConfidence(t,delta,eps,numArm):
+def UpperConfidence(t,delta,eps):
     val = (1 + np.sqrt(eps)) * np.sqrt((1 + eps) * np.log(np.log((1 + eps) * t) / delta) / (2 * t))
     return val
+
+def ReceiveRewardsSim(armChosen,listU):
+    ua = listU[armChosen]
+    reward = np.random.binomial(1,ua)
+    return reward
 
 def ReceiveReward(armChosen, EXP):
     reward = list(EXP[EXP[X] == armChosen].sample(1)['Y'])[0]
@@ -54,19 +59,26 @@ def ReceiveReward(armChosen, EXP):
 def ComputeDynamicMean(n,prevM,lastElem):
     return ((n-1)*prevM + lastElem)/n
 
-def UpdateAfterArm(dictNumArm,dictM,dictLastElem,armChosen,reward):
+def UpdateAfterArm(dictNumArm, dictM, dictLastElem, armChosen, reward):
     dictNumArm[armChosen] += 1
     dictLastElem[armChosen] = reward
     dictM[armChosen] = ComputeDynamicMean(dictNumArm[armChosen], dictM[armChosen],dictLastElem[armChosen])
     return [dictNumArm,dictM,dictLastElem]
 
-def CheckStopCondition(listMuEst,listUEst,ht,lt):
-    if listMuEst[ht]-listUEst[ht] > listMuEst[lt]+listUEst[lt]:
-        return True
-    else:
-        return False
+def CheckStopCondition(listMuEst,listUEst,ht,lt,TF_causal):
+    if TF_causal == True:
+        if max(min(listMuEst[ht]-listUEst[ht], HB[ht]),LB[ht]) > max(min(listMuEst[lt]+listUEst[lt], HB[lt]),LB[lt]):
+            return True
+        else:
+            return False
 
-def RunBestArm(listArm, TF_causal):
+    else:
+        if listMuEst[ht]-listUEst[ht] > listMuEst[lt]+listUEst[lt]:
+            return True
+        else:
+            return False
+
+def RunBestArm(listArm, TF_causal, TF_sim):
     # Note this parametrization satisfied the definition of U
     eps = 0.01
     delta = 0.01  # (1-delta) is a confidence interval
@@ -74,8 +86,6 @@ def RunBestArm(listArm, TF_causal):
 
     # Declaration of variable
     numArm = len(listArm)
-    listH = list()
-    listProbOpt = list()
     dictNumArm = dict()
     dictM = dict()
     dictLastElem = dict()
@@ -84,7 +94,7 @@ def RunBestArm(listArm, TF_causal):
     # dictNumArmH = dict()
 
     for a in listArm:
-        dictNumArm[a] = 1
+        dictNumArm[a] = 0
         dictM[a] = 0
         dictLastElem[a] = 0
 
@@ -92,12 +102,15 @@ def RunBestArm(listArm, TF_causal):
     t = 0
     for a in listArm:
         t += 1
-        reward = ReceiveReward(a, EXP)
+        if TF_sim == True:
+            reward = ReceiveRewardsSim(a,listU)
+        else:
+            reward = ReceiveReward(a, EXP)
         dictNumArm, dictM, dictLastElem = UpdateAfterArm(dictNumArm, dictM, dictLastElem, a, reward)
 
     # Start
-    print("")
-    print("BestArm Start")
+    # print("")
+    # print("BestArm Start")
     while 1:
         t += 1
         listUpperEst = list()
@@ -106,10 +119,10 @@ def RunBestArm(listArm, TF_causal):
         for a in listArm:
             muEst_a = dictM[a]
             listMuEst.append(muEst_a)
-            U_a = UpperConfidence(dictNumArm[a], delta/numArm, eps, numArm)
+            U_a = UpperConfidence(dictNumArm[a], delta/numArm, eps)
             listUEst.append(U_a)
             if TF_causal == True:
-                listUpperEst.append(min(muEst_a + U_a, HB[a]))
+                listUpperEst.append(max(min(muEst_a + U_a, HB[a]),LB[a]))
             else:
                 listUpperEst.append(muEst_a + U_a)
         # print(t,listMuEst,listUpperEst)
@@ -119,39 +132,68 @@ def RunBestArm(listArm, TF_causal):
         # listProbOpt.append(probOpt)
 
         for a in [ht, lt]:
-            reward = ReceiveReward(a, EXP)
+            if TF_sim == True:
+                reward = ReceiveRewardsSim(a, listU)
+            else:
+                reward = ReceiveReward(a, EXP)
+            # reward = ReceiveReward(a, EXP)
             dictNumArm, dictM, dictLastElem = UpdateAfterArm(dictNumArm, dictM, dictLastElem, a, reward)
         if t % 1000 == 0:
             print(t, ht, listMuEst[ht] - listUEst[ht], listMuEst[lt] + listUEst[lt])
-        if CheckStopCondition(listMuEst, listUEst, ht, lt) == True:
+        if CheckStopCondition(listMuEst, listUEst, ht, lt, TF_causal) == True:
             break
 
         # if t > T:
         #     break
 
-    return t
+    return t,ht,dictM
     # print(t, ht)
 
 
+def RunSimulation(numSim, TF_causal,TF_sim):
+    rounds = 0
+    for k in range(numSim):
+        print(k)
+        t,ht,dictM = RunBestArm(listArm, TF_causal=TF_causal, TF_sim=TF_sim)
+        rounds += t
+    return rounds / numSim, dictM
+
+
 X = 'RXASP'
-K = 1
-T = 5500
-listArm = [0,1]
 IST, EXP,OBS = GenData_IST.RunGenData()
+print(GenData_IST.QualityCheck(EXP,OBS,X,TF_emp=False))
+print(GenData_IST.ObsEffect(EXP,'Y'))
+print(GenData_IST.ObsEffect(OBS,'Y'))
+
+TF_sim = False
+listArm = [0,1]
 LB,HB = GenData_IST.ComputeBound(OBS,X)
 U = ComputeMu(EXP,listArm)
+
+if TF_sim == True:
+    LB = [0.03, 0.21]
+    HB = [0.76, 0.4]
+    listU = [0.66,0.36]
+
+    # LB = [0.3, 0.15]
+    # HB = [0.34, 7]
+    # listU = [0.1, 0.6]
+
+    U = copy.copy(listU)
+
 if U[0] > U[1]:
     optarm = 0
 else:
     optarm = 1
 
-print(GenData_IST.QualityCheck(EXP,OBS,X,TF_emp=False))
-print(GenData_IST.ObsEffect(EXP,'Y'))
-print(GenData_IST.ObsEffect(OBS,'Y'))
 print(CheckCase2BestArm(HB,U))
 
-t= RunBestArm(listArm, TF_causal=False)
-tC= RunBestArm(listArm, TF_causal=True)
+numSim = 1
+rounds,dictM = RunSimulation(numSim,TF_causal=False,TF_sim=TF_sim)
+roundsC,dictMC = RunSimulation(numSim,TF_causal=True,TF_sim=TF_sim)
+
+# t,ht= RunBestArm(listArm, TF_causal=False, TF_sim=TF_sim)
+# tC,htC= RunBestArm(listArm, TF_causal=True, TF_sim=TF_sim)
 
 
 

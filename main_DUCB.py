@@ -14,7 +14,18 @@ def ComputePz(OBS,age,sex):
     Pz = len(OBS[(OBS['AGE'] == age) & (OBS['SEX'] == sex)]) / len(OBS)
     return Pz
 
-def ReceiveRewardsSim(armChosen,listU):
+def ComputePzSim(Pz,age,sex):
+    if age == 0 & sex == 0:
+        return Pz[0]
+    elif age == 0 & sex == 1:
+        return Pz[1]
+    elif age == 1 & sex == 0:
+        return Pz[2]
+    else:
+        return Pz[3]
+
+
+def ReceiveRewardsSim(plidxChosen,armChosen,listU):
     ua = listU[armChosen]
     reward = np.random.binomial(1,ua)
     return reward
@@ -27,6 +38,21 @@ def ReceiveRewards(plidxChosen, armChosen, listEXP):
     # EXPi[X == armChosen]
     # reward = EXPi.iloc[dictlistNumPolicyArm[plidxChosen][armChosen]]['Y']
     return reward
+
+def ComputeMpqSim(p,q):
+    def f1(x):
+        return x*np.exp(x-1)-1
+
+    sumProb = 0
+    for age in [0,1]:
+        for sex in [0,1]:
+            pofz = ComputePzSim(Pz,age,sex)
+            for x in [0,1]:
+                pxz = p(age,sex)[x]
+                qxz = q(age,sex)[x]
+                sumProb += f1(pxz/qxz)*qxz*pofz
+
+    return (1+np.log(1+sumProb))
 
 def ComputeMpq(p,q,OBS):
     def f1(x):
@@ -43,6 +69,17 @@ def ComputeMpq(p,q,OBS):
 
     return (1+np.log(1+sumProb))
 
+def ComputeMatMSim(listPolicy):
+    N_poly = len(listPolicy)
+    poly_idx_iter = list(itertools.product(list(range(N_poly)), list(range(N_poly))))
+    M_mat = np.zeros((N_poly, N_poly))
+    for k, j in poly_idx_iter:
+        # if k != j:
+        pk = listPolicy[k]
+        pj = listPolicy[j]
+        M_mat[k,j] = ComputeMpqSim(pk,pj)
+    return M_mat
+
 def ComputeMatM(listPolicy,OBS):
     N_poly = len(listPolicy)
     poly_idx_iter = list(itertools.product(list(range(N_poly)), list(range(N_poly))))
@@ -57,6 +94,11 @@ def ComputeMatM(listPolicy,OBS):
 def ObserveZ(IST,t):
     return list(IST.sample(1)[['AGE','SEX']])
     # return list(IST.iloc[t-1][['AGE', 'SEX']])
+
+def ObserveZSim(Pz):
+    zPossible = [[0,0],[0,1],[1,0],[1,1]]
+    zCase = np.random.choice(len(Pz), p=Pz)
+    return zPossible[zCase]
 
 def ComputeZkt(dictNumPolicy,nPolicy, M, k):
     sumval = 0
@@ -125,16 +167,16 @@ def PullArmFromPl(pl,z):
 def UpdateAfterArm(dictNumPolicy, dictlistNumPolicyArm,dictdictlistPolicyData,plidxChosen,armChosen,z,rewardReceived):
     dictNumPolicy[plidxChosen] += 1
     dictlistNumPolicyArm[plidxChosen][armChosen] += 1
-    dictdictlistPolicyData[plidxChosen]['Z'].append(z)
-    dictdictlistPolicyData[plidxChosen]['X'].append(armChosen)
-    dictdictlistPolicyData[plidxChosen]['Y'].append(rewardReceived)
+    # dictdictlistPolicyData[plidxChosen]['Z'].append(z)
+    # dictdictlistPolicyData[plidxChosen]['X'].append(armChosen)
+    # dictdictlistPolicyData[plidxChosen]['Y'].append(rewardReceived)
     return [dictNumPolicy,dictlistNumPolicyArm,dictdictlistPolicyData]
 
 def UpdateOptProbAfterArm(dictNumPolicy,optpl,t):
     probOptPlChoose = dictNumPolicy[optpl]/t
     return probOptPlChoose
 
-def RunDUCB(numRound,TF_causal):
+def RunDUCB(numRound,TF_causal, TF_sim):
     ''' Variable declaration '''
     dictNumPolicy = dict()
     dictLastElem = dict()
@@ -157,19 +199,28 @@ def RunDUCB(numRound,TF_causal):
         dictdictlistPolicyData[plidx]['Z'] = []
 
     ''' Before start'''
-    Mmat = ComputeMatM(listPolicy, OBS)
+    if TF_sim == True:
+        Mmat = ComputeMatMSim(listPolicy)
+    else:
+        Mmat = ComputeMatM(listPolicy, OBS)
 
     ''' Initial pulling by choosing random '''
     t = 1
     # Observe Z
-    z = ObserveZ(IST, t)
+    if TF_sim == True:
+        z = ObserveZSim(Pz)
+    else:
+        z = ObserveZ(IST, t)
     # Choose random expert
     plidxChosen = np.random.binomial(1, 0.5) # this is initial j
     pl = listPolicy[plidxChosen]
     # Play an arm
     armChosen = PullArmFromPl(pl, z)
     # Receive rewards
-    reward = ReceiveRewards(plidxChosen, armChosen, listEXP)
+    if TF_sim == True:
+        reward = ReceiveRewardsSim(plidxChosen,armChosen,U)
+    else:
+        reward = ReceiveRewards(plidxChosen, armChosen, listEXP)
 
     # Update information
     dictNumPolicy, dictlistNumPolicyArm, dictdictlistPolicyData = \
@@ -186,7 +237,11 @@ def RunDUCB(numRound,TF_causal):
         if t % 1000 == 0:
             print(t)
         # Observe Z
-        z = ObserveZ(IST, t)
+        if TF_sim == True:
+            z = ObserveZSim(Pz)
+        else:
+            z = ObserveZ(IST, t)
+
         listU = []
         for k in range(nPolicy):
             muk = 0
@@ -207,7 +262,10 @@ def RunDUCB(numRound,TF_causal):
         # Play an arm
         armChosen = PullArmFromPl(pl, z)
         # Receive rewards
-        reward = ReceiveRewards(plidxChosen, armChosen, listEXP)
+        if TF_sim == True:
+            reward = ReceiveRewardsSim(plidxChosen, armChosen, U)
+        else:
+            reward = ReceiveRewards(plidxChosen, armChosen, listEXP)
         # Update information
         dictNumPolicy, dictlistNumPolicyArm, dictdictlistPolicyData = \
             UpdateAfterArm(dictNumPolicy, dictlistNumPolicyArm, dictdictlistPolicyData, plidxChosen, armChosen, z,
@@ -222,20 +280,19 @@ def RunDUCB(numRound,TF_causal):
         for j in range(nPolicy):
             sumval += dictLastElem[j]
 
-
         probOptPlChoose = UpdateOptProbAfterArm(dictNumPolicy, optpl, t)
         listProbOpt.append(probOptPlChoose)
         cummRegret += uopt - U[plidxChosen]
         listCummRegret.append(cummRegret)
     return [listProbOpt, listCummRegret]
 
-def RunSimulation(numSim, numRound, TF_causal):
+def RunSimulation(numSim, numRound, TF_causal,TF_sim):
     arrayTFArmCorrect = np.array([0]*numRound)
     arrayCummRegret = np.array([0]*numRound)
 
     for k in range(numSim):
         print(k)
-        listTFArmCorrect, listCummRegret = RunDUCB(numRound,TF_causal)
+        listTFArmCorrect, listCummRegret = RunDUCB(numRound,TF_causal,TF_sim)
         arrayTFArmCorrect = arrayTFArmCorrect + np.asarray(listTFArmCorrect)
         arrayCummRegret = arrayCummRegret + np.asarray(listCummRegret)
 
@@ -244,22 +301,44 @@ def RunSimulation(numSim, numRound, TF_causal):
     return [MeanTFArmCorrect, MeanCummRegret]
 
 # if __name__ == '__main__':
-listEXP, OBS, IST = GenData.RunGenData()
+
+''' Simulation instance '''
+
+def ObserveZSim(Pz):
+    zPossible = [[0,0],[0,1],[1,0],[1,1]]
+    zCase = np.random.choice(len(Pz), p=Pz)
+    return zPossible[zCase]
+
+def ExpectedOutcomeSim(pl):
+    zPossible = [[0,0],[0,1],[1,0],[1,1]]
+    sumval = 0
+    for idx in range(len(Pz)):
+        z = zPossible[idx]
+        pz = Pz[idx]
+        for x in [0,1]:
+            pi_xz = pl(z[0],z[1])[x]
+            expected_xz = EYx_z[idx][x]
+            sumval += pz*pi_xz*expected_xz
+    return sumval
+
+Pz = [0.1,0.2,0.3,0.4]
+EYx_z = [[0.1,0.5],[0.3,0,7],[0.36,0.66],[0.27,0.72]]
+
+LB = [0.1,0.3]
+HB = [0.4,0.7]
+U = list()
 listPolicy = GenData.PolicyGen()
-LB,U,HB = GenData.QualityCheck(listEXP,OBS,listPolicy)
+
+for pl in listPolicy:
+    U.append(ExpectedOutcomeSim(pl))
 optpl = np.argmax(U)
 uopt = U[optpl]
 usubopt = U[1-optpl]
 
-numRound = 500000
-numSim = 1
-MeanTFArmCorrect, MeanCummRegret = RunSimulation(numSim, numRound, TF_causal=False)
-MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim, numRound, TF_causal=True)
-
-# scipy.io.savemat('listProbOpt.mat', mdict={'listProbOpt': listProbOpt})
-# scipy.io.savemat('listProbOpt_C.mat', mdict={'listProbOpt_C': listProbOpt_C})
-# scipy.io.savemat('listCummRegret.mat', mdict={'listCummRegret': listCummRegret})
-# scipy.io.savemat('listCummRegret_C.mat', mdict={'listCummRegret_C': listCummRegret_C})
+numRound = 50000
+numSim = 20
+MeanTFArmCorrect, MeanCummRegret = RunSimulation(numSim, numRound, TF_causal=False,TF_sim=True)
+MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim, numRound, TF_causal=True,TF_sim=True)
 
 plt.figure(1)
 plt.title('Prob Opt')
@@ -274,3 +353,42 @@ plt.plot(MeanCummRegret_C, label='C-DUCB')
 plt.legend()
 
 plt.show()
+
+
+# GenData.CheckCase2(HB,U)
+
+
+
+
+
+
+# listEXP, OBS, IST = GenData.RunGenData()
+
+# LB,U,HB = GenData.QualityCheck(listEXP,OBS,listPolicy)
+# optpl = np.argmax(U)
+# uopt = U[optpl]
+# usubopt = U[1-optpl]
+#
+# numRound = 500000
+# numSim = 1
+# MeanTFArmCorrect, MeanCummRegret = RunSimulation(numSim, numRound, TF_causal=False)
+# MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim, numRound, TF_causal=True)
+#
+# # scipy.io.savemat('listProbOpt.mat', mdict={'listProbOpt': listProbOpt})
+# # scipy.io.savemat('listProbOpt_C.mat', mdict={'listProbOpt_C': listProbOpt_C})
+# # scipy.io.savemat('listCummRegret.mat', mdict={'listCummRegret': listCummRegret})
+# # scipy.io.savemat('listCummRegret_C.mat', mdict={'listCummRegret_C': listCummRegret_C})
+#
+# plt.figure(1)
+# plt.title('Prob Opt')
+# plt.plot(MeanTFArmCorrect, label='DUCB')
+# plt.plot(MeanTFArmCorrect_C, label='C-DUCB')
+# plt.legend()
+#
+# plt.figure(2)
+# plt.title('Cummul. Regret')
+# plt.plot(MeanCummRegret, label='DUCB')
+# plt.plot(MeanCummRegret_C, label='C-DUCB')
+# plt.legend()
+#
+# plt.show()

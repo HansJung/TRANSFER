@@ -10,7 +10,6 @@ def ReceiveRewardsSim(armChosen,listU):
     reward = np.random.binomial(1,ua)
     return reward
 
-
 def ReceiveRewards(armChosen, EXP):
     X = 'RXASP'
     reward = list(EXP[EXP[X] == armChosen].sample(1)['Y'])[0]
@@ -159,12 +158,12 @@ listU = GenData_IST.ObsEffect(EXP,'Y')
 
 ''' Bandit Run!'''
 TF_sim = True
-numRound = 5000
-numSim = 200
+numRound = 2000
+numSim = 100
 
 if TF_sim == True:
     LB = [0.03, 0.21]
-    HB = [0.76, 0.51]
+    HB = [0.76, 0.6]
     listU = [0.66,0.36]
 
 listlistTFArmCorrect = list()
@@ -182,10 +181,10 @@ MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim,numRound,TF_causal=T
 # pickle.dump(MeanTFArmCorrect_C,open('MeanTFArmCorrect_C.pkl','wb'))
 # pickle.dump(MeanCummRegret_C,open('MeanCummRegret_C.pkl','wb'))
 #
-# scipy.io.savemat('MeanTFArmCorrect.mat', mdict={'MeanTFArmCorrect': MeanTFArmCorrect})
-# scipy.io.savemat('MeanCummRegret.mat', mdict={'MeanCummRegret': MeanCummRegret})
-# scipy.io.savemat('MeanTFArmCorrect_C.mat', mdict={'MeanTFArmCorrect_C': MeanTFArmCorrect_C})
-# scipy.io.savemat('MeanCummRegret_C.mat', mdict={'MeanCummRegret_C': MeanCummRegret_C})
+scipy.io.savemat('MeanTFArmCorrect.mat', mdict={'MeanTFArmCorrect': MeanTFArmCorrect})
+scipy.io.savemat('MeanCummRegret.mat', mdict={'MeanCummRegret': MeanCummRegret})
+scipy.io.savemat('MeanTFArmCorrect_C.mat', mdict={'MeanTFArmCorrect_C': MeanTFArmCorrect_C})
+scipy.io.savemat('MeanCummRegret_C.mat', mdict={'MeanCummRegret_C': MeanCummRegret_C})
 
 
 plt.figure(1)
