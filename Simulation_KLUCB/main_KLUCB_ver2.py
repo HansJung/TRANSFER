@@ -64,7 +64,7 @@ def UpdateAfterArm(dictNumArm,dictM,dictLastElem,armChosen,reward):
 def ComputeMu(dictlistNumArmReard, armChoice):
     return np.mean(dictlistNumArmReard[armChoice])
 
-def RunKLUCB(listArm, listHB, listU, numRound, TF_causal, TF_sim):
+def RunKLUCB(listArm, listHB, listLB, listU, numRound, TF_causal, TF_sim):
     ''' Definition of variable '''
     dictNumArm = dict()
     # dictlistArmReward= dict()
@@ -103,7 +103,7 @@ def RunKLUCB(listArm, listHB, listU, numRound, TF_causal, TF_sim):
             # print(t, a, mu_hat, ft, dictNumArm[a])
             upper_a = MaxKL(mu_hat,ft,dictNumArm[a],init_maxval=1)
             if TF_causal:
-                upper_a = np.min([listHB[a], upper_a])
+                upper_a = np.max([np.min([listHB[a], upper_a]),listLB[a]])
             listUpper.append(upper_a)
         # print(t,listUpper)
         armChosen = np.argmax(listUpper)
@@ -127,7 +127,7 @@ def RunSimulation(numSim, numRound, TF_causal,TF_sim):
 
     for k in range(numSim):
         print(k)
-        listTFArmCorrect, listCummRegret = RunKLUCB(listArm, HB, listU, numRound, TF_causal=TF_causal, TF_sim = TF_sim)
+        listTFArmCorrect, listCummRegret = RunKLUCB(listArm, HB, LB, listU, numRound, TF_causal=TF_causal, TF_sim = TF_sim)
         arrayTFArmCorrect = arrayTFArmCorrect + np.asarray(listTFArmCorrect)
         arrayCummRegret = arrayCummRegret + np.asarray(listCummRegret)
         # listlistTFArmCorrect.append(listTFArmCorrect)
@@ -157,7 +157,7 @@ listU = GenData_IST.ObsEffect(EXP,'Y')
 
 
 ''' Bandit Run!'''
-TF_sim = True
+TF_sim = False
 numRound = 2000
 numSim = 100
 
