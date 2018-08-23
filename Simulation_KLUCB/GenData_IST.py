@@ -45,11 +45,11 @@ def ContNormalization(df,colname):
     df_col = (df_col - min(df_col))/(max(df_col) - min(df_col))
     return df_col
 
-def ObsEffect(df,outcome):
+def ComputeEffect(df,outcome):
     return [np.mean(df[(df['RXASP'] == 0)][outcome]), np.mean(df[(df['RXASP'] == 1)][outcome])]
 
 def diffEffect(df,outcome):
-    Yx0, Yx1 = ObsEffect(df,outcome)
+    Yx0, Yx1 = ComputeEffect(df,outcome)
     return(np.abs(Yx0-Yx1))
 
 def SigTest(df,X,Y):

@@ -178,7 +178,6 @@ if TF_sim == True:
     # LB = [0.3, 0.15]
     # HB = [0.34, 7]
     # listU = [0.1, 0.6]
-
     U = copy.copy(listU)
 
 if U[0] > U[1]:

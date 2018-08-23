@@ -5,6 +5,24 @@ import itertools
 import matplotlib.pyplot as plt
 import scipy.io
 
+def ObserveZSim(Pz):
+    zPossible = [[0, 0], [0, 1], [1, 0], [1, 1]]
+    zCase = np.random.choice(len(Pz), p=Pz)
+    return zPossible[zCase]
+
+
+def ExpectedOutcomeSim(pl):
+    zPossible = [[0, 0], [0, 1], [1, 0], [1, 1]]
+    sumval = 0
+    for idx in range(len(Pz)):
+        z = zPossible[idx]
+        pz = Pz[idx]
+        for x in [0, 1]:
+            pi_xz = pl(z[0], z[1])[x]
+            expected_xz = EYx_z[idx][x]
+            sumval += pz * pi_xz * expected_xz
+    return sumval
+
 def ComputePxz(OBS,age,sex,x):
     X = 'RXASP'
     P_xz = len(OBS[(OBS['AGE'] == age) & (OBS['SEX'] == sex) & (OBS[X] == x)]) / len(OBS)
@@ -166,12 +184,17 @@ def PullArmFromPl(pl,z):
     probs = pl(z[0],z[1])
     return np.random.binomial(1,probs[1])
 
+# def UpdateAfterArm(dictNumPolicy, dictlistNumPolicyArm,dictdictlistPolicyData,plidxChosen,armChosen,z,rewardReceived):
+#     dictNumPolicy[plidxChosen] += 1
+#     dictlistNumPolicyArm[plidxChosen][armChosen] += 1
+#     dictdictlistPolicyData[plidxChosen]['Z'].append(z)
+#     dictdictlistPolicyData[plidxChosen]['X'].append(armChosen)
+#     dictdictlistPolicyData[plidxChosen]['Y'].append(rewardReceived)
+#     return [dictNumPolicy,dictlistNumPolicyArm,dictdictlistPolicyData]
+
 def UpdateAfterArm(dictNumPolicy, dictlistNumPolicyArm,dictdictlistPolicyData,plidxChosen,armChosen,z,rewardReceived):
     dictNumPolicy[plidxChosen] += 1
     dictlistNumPolicyArm[plidxChosen][armChosen] += 1
-    dictdictlistPolicyData[plidxChosen]['Z'].append(z)
-    dictdictlistPolicyData[plidxChosen]['X'].append(armChosen)
-    dictdictlistPolicyData[plidxChosen]['Y'].append(rewardReceived)
     return [dictNumPolicy,dictlistNumPolicyArm,dictdictlistPolicyData]
 
 def UpdateOptProbAfterArm(dictNumPolicy,optpl,t):
@@ -180,7 +203,7 @@ def UpdateOptProbAfterArm(dictNumPolicy,optpl,t):
 
 def RunDUCB(numRound,TF_causal, TF_sim):
     ''' Variable declaration '''
-    dictNumPolicy = dict()
+    dictNumPolicy = dict() # Number of choosing policy p
     dictLastElem = dict()
     dictlistNumPolicyArm = dict()
     dictdictlistPolicyData = dict()
@@ -197,7 +220,6 @@ def RunDUCB(numRound,TF_causal, TF_sim):
     cummRegret = 0
     listCummRegret = []
 
-
     for plidx in range(nPolicy):
         dictNumPolicy[plidx] = 0
         dictLastElem[plidx] = 0
@@ -212,12 +234,13 @@ def RunDUCB(numRound,TF_causal, TF_sim):
         dictUpper[plidx] = 0
 
     ''' Before start'''
+    # Compute the M matrix
     if TF_sim == True:
         Mmat = ComputeMatMSim(listPolicy)
     else:
         Mmat = ComputeMatM(listPolicy, OBS)
 
-    ''' Initial pulling by choosing random '''
+    ''' Initial pulling by random choice'''
     t = 1
     # Observe Z
     if TF_sim == True:
@@ -226,19 +249,20 @@ def RunDUCB(numRound,TF_causal, TF_sim):
         z = ObserveZ(IST, t)
     # Choose random expert
     plidxChosen = np.random.binomial(1, 0.5) # this is initial j
-    pl = listPolicy[plidxChosen]
-    # Play an arm
+    pl = listPolicy[plidxChosen] # randomly chosen policy
+    # Play an arm from pl
     armChosen = PullArmFromPl(pl, z)
     # Receive rewards
     if TF_sim == True:
-        reward = ReceiveRewardsSim(plidxChosen,armChosen,U)
+        reward = ReceiveRewardsSim(plidxChosen,armChosen,U) # receive the reward
     else:
         reward = ReceiveRewards(plidxChosen, armChosen, listEXP)
 
     # Update information
     ## Update
-    dictNumPolicy, dictlistNumPolicyArm, dictdictlistPolicyData = \
-        UpdateAfterArm(dictNumPolicy, dictlistNumPolicyArm, dictdictlistPolicyData, plidxChosen, armChosen, z, reward)
+    dictNumPolicy[plidxChosen] += 1
+    # dictNumPolicy, dictlistNumPolicyArm, dictdictlistPolicyData = \
+    #     UpdateAfterArm(dictNumPolicy, dictlistNumPolicyArm, dictdictlistPolicyData, plidxChosen, armChosen, z, reward)
     for k in range(nPolicy):
         # Zkt = ComputeZkt(dictNumPolicy, nPolicy, Mmat, k)
         MatSumVal[k][plidxChosen] += ComputeVal(xjs=armChosen,yjs=reward,zjs=z,k=k,j=plidxChosen,listPolicy=listPolicy,M=Mmat,t=t)
@@ -253,10 +277,6 @@ def RunDUCB(numRound,TF_causal, TF_sim):
         dictUpper[k] = dictMu[k] + dictSk[k]
 
     print(t, dictMu)
-    # print(MatSumVal)
-    # print(ComputeVal(xjs=armChosen,yjs=reward,zjs=z,k=k,j=plidxChosen,listPolicy=listPolicy,M=Mmat,t=t))
-
-    # probOptPlChoose = UpdateOptProbAfterArm(dictNumPolicy, optpl, t)
 
     ''' Play! '''
     for t in range(2, numRound+2):
@@ -356,93 +376,63 @@ def RunSimulation(numSim, numRound, TF_causal,TF_sim):
     MeanCummRegret = arrayCummRegret / numSim
     return [MeanTFArmCorrect, MeanCummRegret]
 
-# # if __name__ == '__main__':
-#
-# ''' Simulation instance '''
-#
-# def ObserveZSim(Pz):
-#     zPossible = [[0,0],[0,1],[1,0],[1,1]]
-#     zCase = np.random.choice(len(Pz), p=Pz)
-#     return zPossible[zCase]
-#
-# def ExpectedOutcomeSim(pl):
-#     zPossible = [[0,0],[0,1],[1,0],[1,1]]
-#     sumval = 0
-#     for idx in range(len(Pz)):
-#         z = zPossible[idx]
-#         pz = Pz[idx]
-#         for x in [0,1]:
-#             pi_xz = pl(z[0],z[1])[x]
-#             expected_xz = EYx_z[idx][x]
-#             sumval += pz*pi_xz*expected_xz
-#     return sumval
-#
-# Pz = [0.1,0.2,0.3,0.4]
-# zPossible = [[0,0],[0,1],[1,0],[1,1]]
-# EYx_z = [[0.1,0.5],[0.3,0.01],[0.36,0.66],[0.27,0.72]]
-#
-# LB = [0.1,0.3]
-# HB = [0.4,0.7]
-# U = list()
-# listPolicy = GenData.PolicyGen()
-#
-# for pl in listPolicy:
-#     U.append(ExpectedOutcomeSim(pl))
-# optpl = np.argmax(U)
-# uopt = U[optpl]
-# usubopt = U[1-optpl]
-#
-# numRound = 1000
-# numSim = 10
-# MeanTFArmCorrect, MeanCummRegret = RunSimulation(numSim, numRound, TF_causal=False,TF_sim=True)
-# MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim, numRound, TF_causal=True,TF_sim=True)
-#
-# plt.figure(1)
-# plt.title('Prob Opt')
-# plt.plot(MeanTFArmCorrect, label='DUCB')
-# plt.plot(MeanTFArmCorrect_C, label='C-DUCB')
-# plt.legend()
-#
-# plt.figure(2)
-# plt.title('Cummul. Regret')
-# plt.plot(MeanCummRegret, label='DUCB')
-# plt.plot(MeanCummRegret_C, label='C-DUCB')
-# plt.legend()
-#
-# plt.show()
+TF_sim = True
+TF_SaveResult = False
+TF_plot = True
+numRound = 2000
+numSim = 200
 
+if TF_sim == True:
+    ''' Simulation instance '''
+    Pz = [0.1,0.2,0.3,0.4]
+    zPossible = [[0,0],[0,1],[1,0],[1,1]]
+    EYx_z = [[0.1,0.5],[0.3,0.01],[0.36,0.66],[0.27,0.72]]
 
-# GenData.CheckCase2(HB,U)
+    LB = [0.1,0.3]
+    HB = [0.4,0.7]
+    U = list()
+    listPolicy = GenData.PolicyGen()
 
-listEXP, OBS, IST = GenData.RunGenData()
-listPolicy = GenData.PolicyGen()
+    for pl in listPolicy:
+        U.append(ExpectedOutcomeSim(pl))
+    print(GenData.CheckCase2(HB,U))
 
-LB,U,HB = GenData.QualityCheck(listEXP,OBS,listPolicy)
+else:
+    ''' Real data instance '''
+    listEXP, OBS, IST = GenData.RunGenData()
+    listPolicy = GenData.PolicyGen()
+    LB, U, HB = GenData.QualityCheck(listEXP, OBS, listPolicy)
+    print(GenData.CheckCase2(HB, U))
+
 optpl = np.argmax(U)
 uopt = U[optpl]
 usubopt = U[1-optpl]
 
-numRound = 50000
-numSim = 300
-TF_sim = False
 MeanTFArmCorrect, MeanCummRegret = RunSimulation(numSim, numRound, TF_causal=False,TF_sim=TF_sim)
 MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim, numRound, TF_causal=True,TF_sim=TF_sim)
 
-# scipy.io.savemat('listProbOpt.mat', mdict={'listProbOpt': listProbOpt})
-# scipy.io.savemat('listProbOpt_C.mat', mdict={'listProbOpt_C': listProbOpt_C})
-# scipy.io.savemat('listCummRegret.mat', mdict={'listCummRegret': listCummRegret})
-# scipy.io.savemat('listCummRegret_C.mat', mdict={'listCummRegret_C': listCummRegret_C})
+if TF_SaveResult:
+    scipy.io.savemat('MeanTFArmCorrect.mat', mdict={'MeanTFArmCorrect': MeanTFArmCorrect})
+    scipy.io.savemat('MeanCummRegret.mat', mdict={'MeanCummRegret': MeanCummRegret})
+    scipy.io.savemat('MeanTFArmCorrect_C.mat', mdict={'MeanTFArmCorrect_C': MeanTFArmCorrect_C})
+    scipy.io.savemat('MeanCummRegret_C.mat', mdict={'MeanCummRegret_C': MeanCummRegret_C})
 
-plt.figure(1)
-plt.title('Prob Opt')
-plt.plot(MeanTFArmCorrect, label='DUCB')
-plt.plot(MeanTFArmCorrect_C, label='C-DUCB')
-plt.legend()
+if TF_plot:
+    plt.figure(1)
+    plt.title('Prob Opt')
+    plt.plot(MeanTFArmCorrect, label='DUCB')
+    plt.plot(MeanTFArmCorrect_C, label='C-DUCB')
+    plt.legend()
 
-plt.figure(2)
-plt.title('Cummul. Regret')
-plt.plot(MeanCummRegret, label='DUCB')
-plt.plot(MeanCummRegret_C, label='C-DUCB')
-plt.legend()
+    plt.figure(2)
+    plt.title('Cummul. Regret')
+    plt.plot(MeanCummRegret, label='DUCB')
+    plt.plot(MeanCummRegret_C, label='C-DUCB')
+    plt.legend()
 
-plt.show()
+    plt.show()
+
+
+
+
+

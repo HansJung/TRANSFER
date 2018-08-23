@@ -66,11 +66,11 @@ def ComputeMu(dictlistNumArmReard, armChoice):
 
 def RunKLUCB(listArm, listHB, listLB, listU, numRound, TF_causal, TF_sim):
     ''' Definition of variable '''
-    dictNumArm = dict()
-    dictM = dict()
-    dictLastElem = dict()
-    listTFArmCorrect = list()
-    listCummRegret = list()
+    dictNumArm = dict() # Number of pulling arm a
+    dictM = dict() # Average of reward of arm a
+    dictLastElem = dict() # previous reward of arm a
+    listTFArmCorrect = list() # 1 if arm a = optimal arm // 0 otherwise.
+    listCummRegret = list() # cummulative regret += E[Y|do(X=optimal)] - E[Y|do(X=a)]
 
     armOpt = np.argmax(listU)
     cummRegret = 0
@@ -79,9 +79,9 @@ def RunKLUCB(listArm, listHB, listLB, listU, numRound, TF_causal, TF_sim):
         dictNumArm[a] = 0
         dictM[a] = 0
         dictLastElem[a] = 0
-        # dictlistArmReward[a] = list()
 
     ''' Initial pulling'''
+    # Pulling all arm at once.
     for a in listArm:
         if TF_sim == True:
             reward = ReceiveRewardsSim(a, listU)
@@ -92,15 +92,15 @@ def RunKLUCB(listArm, listHB, listLB, listU, numRound, TF_causal, TF_sim):
     ''' Run!'''
     f = lambda x: np.log(x) + 3 * np.log(np.log(x))
     for idxround in range(numRound):
-        t = idxround + len(listArm) + 1
+        t = idxround + len(listArm) + 1 # t=3,4,...,nRound+2 // total nRound.
         # Compute the mean reward
-        listUpper = list()
+        listUpper = list() # Each arm's upper confidence.
         for a in listArm:
             # Compute
-            mu_hat = dictM[a]
+            mu_hat = dictM[a] # Average rewards of arm a up to (t-1)
             ft = f(t)
             # print(t, a, mu_hat, ft, dictNumArm[a])
-            upper_a = MaxKL(mu_hat,ft,dictNumArm[a],init_maxval=1)
+            upper_a = MaxKL(mu_hat,ft,dictNumArm[a],init_maxval=1) # argmax_u KL(mu_hat, u) < (ft/Na(t)) s.t. 0<= u <= 1.
             if TF_causal:
                 upper_a = np.max([np.min([listHB[a], upper_a]),listLB[a]])
             listUpper.append(upper_a)
@@ -129,8 +129,6 @@ def RunSimulation(numSim, numRound, TF_causal,TF_sim):
         listTFArmCorrect, listCummRegret = RunKLUCB(listArm, HB, LB, listU, numRound, TF_causal=TF_causal, TF_sim = TF_sim)
         arrayTFArmCorrect = arrayTFArmCorrect + np.asarray(listTFArmCorrect)
         arrayCummRegret = arrayCummRegret + np.asarray(listCummRegret)
-        # listlistTFArmCorrect.append(listTFArmCorrect)
-        # listlistCummRegret.append(listCummRegret)
 
     MeanTFArmCorrect = arrayTFArmCorrect / numSim
     MeanCummRegret = arrayCummRegret / numSim
@@ -152,18 +150,15 @@ if TF_sim == True:
 else:
     X = 'RXASP'
     IST, EXP,OBS = GenData_IST.RunGenData()
-    print(GenData_IST.QualityCheck(EXP,OBS,X,TF_emp=True))
-    print("")
     print(GenData_IST.QualityCheck(EXP,OBS,X,TF_emp=False))
-    print(GenData_IST.ObsEffect(EXP,'Y'))
-    print(GenData_IST.ObsEffect(OBS,'Y'))
+    print(GenData_IST.ComputeEffect(EXP,'Y'))
+    print(GenData_IST.ComputeEffect(OBS,'Y'))
 
     LB,HB = GenData_IST.ComputeBound(OBS,X)
     lx0,lx1 = LB
     hx0,hx1 = HB
-    bound_list = [[lx0,hx0],[lx1,hx1]]
     listArm = [0,1]
-    listU = GenData_IST.ObsEffect(EXP,'Y')
+    listU = GenData_IST.ComputeEffect(EXP,'Y')
 
 print("")
 print("Bandit Start")
@@ -172,15 +167,16 @@ print("-"*100)
 print("")
 MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim,numRound,TF_causal=True,TF_sim=TF_sim)
 
-# pickle.dump(MeanTFArmCorrect,open('MeanTFArmCorrect.pkl','wb'))
-# pickle.dump(MeanCummRegret,open('MeanCummRegret.pkl','wb'))
-# pickle.dump(MeanTFArmCorrect_C,open('MeanTFArmCorrect_C.pkl','wb'))
-# pickle.dump(MeanCummRegret_C,open('MeanCummRegret_C.pkl','wb'))
+if TF_SaveResult:
+    # pickle.dump(MeanTFArmCorrect,open('MeanTFArmCorrect.pkl','wb'))
+    # pickle.dump(MeanCummRegret,open('MeanCummRegret.pkl','wb'))
+    # pickle.dump(MeanTFArmCorrect_C,open('MeanTFArmCorrect_C.pkl','wb'))
+    # pickle.dump(MeanCummRegret_C,open('MeanCummRegret_C.pkl','wb'))
 
-scipy.io.savemat('MeanTFArmCorrect.mat', mdict={'MeanTFArmCorrect': MeanTFArmCorrect})
-scipy.io.savemat('MeanCummRegret.mat', mdict={'MeanCummRegret': MeanCummRegret})
-scipy.io.savemat('MeanTFArmCorrect_C.mat', mdict={'MeanTFArmCorrect_C': MeanTFArmCorrect_C})
-scipy.io.savemat('MeanCummRegret_C.mat', mdict={'MeanCummRegret_C': MeanCummRegret_C})
+    scipy.io.savemat('MeanTFArmCorrect.mat', mdict={'MeanTFArmCorrect': MeanTFArmCorrect})
+    scipy.io.savemat('MeanCummRegret.mat', mdict={'MeanCummRegret': MeanCummRegret})
+    scipy.io.savemat('MeanTFArmCorrect_C.mat', mdict={'MeanTFArmCorrect_C': MeanTFArmCorrect_C})
+    scipy.io.savemat('MeanCummRegret_C.mat', mdict={'MeanCummRegret_C': MeanCummRegret_C})
 
 if TF_plot == True:
     plt.figure(1)
