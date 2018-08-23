@@ -159,6 +159,7 @@ def RunSimulation(numSim, TF_causal,TF_sim):
 
 TF_sim = True
 numSim = 200
+listArm = [0,1]
 
 if TF_sim == True:
     ''' Externally provided simulation instances '''
@@ -188,7 +189,6 @@ if U[0] > U[1]:
     optarm = 0
 else:
     optarm = 1
-
 
 rounds,dictM = RunSimulation(numSim,TF_causal=False,TF_sim=TF_sim)
 roundsC,dictMC = RunSimulation(numSim,TF_causal=True,TF_sim=TF_sim)

@@ -52,36 +52,34 @@ def diffEffect(df,outcome):
     Yx0, Yx1 = ComputeEffect(df,outcome)
     return(np.abs(Yx0-Yx1))
 
-def SigTest(df,X,Y):
-    result = stats.ttest_ind(df[df[X] == 0][Y], df[df[X] == 1][Y], equal_var=False)
-    return result.pvalue
 
 def ReduceIST(IST):
+    # Exclude patients not having AF
     IST = IST.loc[pd.isnull(IST['RATRIAL']) == False]
-    ## If No dead informatino, then exlucde
-    # IST = IST.loc[(IST['FDEAD'] != 'U')]
-    ## If No recover informatino, then exlucde
+    # Exclude patients having no recovery information
     IST = IST.loc[(IST['FRECOVER']) != 'U']
-    ## Patients without taking Heparin, b/c, we are only interested in Aspirin
-    # IST = IST.loc[(IST['RXHEP'] == 'N')]
+    # Exclude patients being dead due to other reasons (irrevant stroke)
     # ## Patients dead from other causes are exlucded.
     IST = IST.loc[(IST['DEAD7'] == 0) & (IST['DEAD8'] == 0)]
-    ## Patients only complied
-    # IST = IST.loc[(IST['CMPLASP'] == 'Y')]
-
     chosen_variables = ['SEX', 'AGE',
                         'RSLEEP', 'RATRIAL', 'RCONSC', 'RDELAY', 'RVISINF', 'RSBP',
                         'RXASP',
                         'FRECOVER',
                         'EXPDD'
                         ]
+    # Include only chosen variables (covariaets)
     IST = IST[chosen_variables]
+    # Delete row with missing variables.
     IST = IST.dropna()
-
     IST = IndexifyDisc(IST)
 
-    outcome = 1 * IST['FRECOVER'] - (1 - 1 * IST['EXPDD'])
-    outcome = (outcome + 1) / 2
+    # Generate continuous Y
+    ## FRECOVER {0,1} (1 if recovered // 0 if dependent or dead)
+    ## IST['EXPDD'] is a predicted probabililty of being dead+dependent.
+    ## i.e., 1-IST['EXPDD'] is a prob of recovery.
+    ### outcome is higher if actually recovered despite low recovery prob.
+    outcome = IST['FRECOVER'] - (1 - IST['EXPDD'])
+    outcome = (outcome + 1) / 2 # Normalizing to [0,1]
     outcome = pd.DataFrame({'Y': outcome})
     IST = pd.concat([IST, outcome], axis=1)
     return IST
@@ -104,18 +102,27 @@ def ContToDisc(IST):
     IST['RDELAY'] = ThreeCategorize(IST['RDELAY'])
     return IST
 
+def SigTest(df,X,Y):
+    result = stats.ttest_ind(df[df[X] == 0][Y], df[df[X] == 1][Y], equal_var=False)
+    return result.pvalue
+
 def SeedFinding(IST, sample_N, alpha=0.01):
-    prev_sig = 10
+    # Find the random seed number
+    prev_sig = 2 ** 32 - 1
     iter_idx = 0
     possible_case = 2 ** 32 - 1
     remember_seed = 0
 
     while 1:
         iter_idx += 1
+        # Randomly generating the seed
         seed_num = np.random.randint(possible_case)
         np.random.seed(seed_num)
+        # Randomly sample from randomly chosen seed
         Sample = IST.sample(n=sample_N)
+        # Test the significance of samples
         sig_sample = SigTest(Sample,'RXASP','Y')
+        # Store the minimum significance and the seed number
         if sig_sample < prev_sig:
             prev_sig = sig_sample
             remember_seed = seed_num
@@ -123,6 +130,7 @@ def SeedFinding(IST, sample_N, alpha=0.01):
         if iter_idx%500 == 0:
             print(seed_num, sig_sample, prev_sig, remember_seed, iter_idx)
 
+        # If the significant level is small enough, then stop
         if sig_sample < alpha:
             remember_seed = seed_num
             break
@@ -139,6 +147,7 @@ def GenEXP(IST,sample_N = 10000, remember_seed = 3141693719):
     return EXP
 
 def GenOBS(EXP, seed_obs = 1):
+    # Generate OBS from EXP
     np.random.seed(seed_obs)
     weight_sick = 0.01
     weight_treatment = 0.99
@@ -150,6 +159,7 @@ def GenOBS(EXP, seed_obs = 1):
         elem_EXPD = elem['EXPDD']
         elem_treat = elem['RXASP']
 
+        # MAKE THIS CODE MORE INTERPRETABLE
         if elem_treat == 0:
             if elem_EXPD < 0.7:
                 prob = 0.2
@@ -161,6 +171,7 @@ def GenOBS(EXP, seed_obs = 1):
             else:
                 prob = 0.2
 
+        # Computing the selection probability of patients idx
         selection_prob = np.dot([weight_sick, weight_treatment],[prob, 1-elem_treat])
 
         if np.random.binomial(1, selection_prob) == 0:
@@ -255,9 +266,8 @@ def RunGenData(sample_N=12000, remember_seed = 1444260861):
     # Data load
     IST = pd.read_csv('IST.csv')
     IST = ReduceIST(IST)
-
     IST = IndexifyDisc(IST)
-    IST = ContToDisc(IST)
+    IST = ContToDisc(IST) # Continuous variable to discretize
 
     # remember_seed = SeedFinding(IST,sample_N=12000, alpha=0.01)
 

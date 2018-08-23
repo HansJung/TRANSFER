@@ -337,8 +337,8 @@ def RunSimulation(numSim, numRound, TF_causal,TF_sim):
 TF_sim = True
 TF_SaveResult = False
 TF_plot = True
-numRound = 2000
-numSim = 200
+numRound = 10000
+numSim = 10
 
 if TF_sim == True:
     ''' Simulation instance '''

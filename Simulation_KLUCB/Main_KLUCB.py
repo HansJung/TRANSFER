@@ -28,28 +28,27 @@ def MaxBinarySearch(mu_hat, M, maxval):
     if mu_hat == 1:
         return 1
     elif mu_hat == 0:
-        mu_hat += eps
+        mu_hat += eps # diff
     mu = copy.copy(mu_hat)
+
     while 1:
         mu_cand = (mu + maxval) / 2
         KL_val = BinoKL(mu_hat, mu_cand)
         diff = np.abs(KL_val - M)
         # print(mu, mu_hat, mu_cand,KL_val, M, diff)
+        if diff < terminal_cond:
+            mu = mu_cand
+            return mu
+
         if KL_val < M:
-            if diff < terminal_cond:
-                mu = mu_cand
-                return mu
-            else:
-                mu = copy.copy(mu_cand)
+            mu = copy.copy(mu_cand)
         else:
             maxval = copy.copy(mu_cand)
-        if np.abs(mu - 1) < terminal_cond:
-            return mu
 
 def MaxKL(mu_hat, ft, NaT, init_maxval=1):
     maxval = copy.copy(init_maxval)
     M = ft/NaT
-    mu = MaxBinarySearch(mu_hat, M,maxval)
+    mu = MaxBinarySearch(mu_hat, M, maxval)
     return mu
 
 def ComputeDynamicMean(n,prevM,lastElem):
@@ -88,10 +87,16 @@ def RunKLUCB(listArm, listHB, listLB, listU, numRound, TF_causal, TF_sim):
         else:
             reward = ReceiveRewards(a,EXP)
         dictNumArm, dictM, dictLastElem = UpdateAfterArm(dictNumArm,dictM,dictLastElem, a, reward)
+        cummRegret += listU[armOpt] - listU[a]
+        listCummRegret.append(cummRegret)
+        if a == armOpt:
+            listTFArmCorrect.append(1)
+        else:
+            listTFArmCorrect.append(0)
 
     ''' Run!'''
     f = lambda x: np.log(x) + 3 * np.log(np.log(x))
-    for idxround in range(numRound):
+    for idxround in range(numRound-2):
         t = idxround + len(listArm) + 1 # t=3,4,...,nRound+2 // total nRound.
         # Compute the mean reward
         listUpper = list() # Each arm's upper confidence.
@@ -138,7 +143,7 @@ TF_sim = True
 TF_SaveResult = False
 TF_plot = True
 numRound = 2000
-numSim = 200
+numSim = 10
 
 if TF_sim == True:
     ''' Externally provided simulation instances '''
@@ -146,10 +151,12 @@ if TF_sim == True:
     HB = [0.76, 0.6]
     listU = [0.66, 0.36]
     listArm = [0, 1]
+    print(GenData_IST.CheckCase2(HB,listU))
 
 else:
+    ''' Real data'''
     X = 'RXASP'
-    IST, EXP,OBS = GenData_IST.RunGenData()
+    IST, EXP, OBS = GenData_IST.RunGenData()
     print(GenData_IST.QualityCheck(EXP,OBS,X,TF_emp=False))
     print(GenData_IST.ComputeEffect(EXP,'Y'))
     print(GenData_IST.ComputeEffect(OBS,'Y'))
@@ -159,6 +166,7 @@ else:
     hx0,hx1 = HB
     listArm = [0,1]
     listU = GenData_IST.ComputeEffect(EXP,'Y')
+    print(GenData_IST.CheckCase2(HB, listU))
 
 print("")
 print("Bandit Start")
