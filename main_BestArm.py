@@ -3,6 +3,7 @@ import numpy as np
 from Simulation_KLUCB import GenData_IST
 import copy
 import matplotlib.pyplot as plt
+import scipy.io
 
 def ComputeMu(EXP,listArm):
     X = 'RXASP'
@@ -143,9 +144,6 @@ def RunBestArm(listArm, TF_causal, TF_sim):
         if CheckStopCondition(listMuEst, listUEst, ht, lt, TF_causal) == True:
             break
 
-        # if t > T:
-        #     break
-
     return t,ht,dictM
     # print(t, ht)
 
@@ -159,40 +157,54 @@ def RunSimulation(numSim, TF_causal,TF_sim):
     return rounds / numSim, dictM
 
 
-X = 'RXASP'
-IST, EXP,OBS = GenData_IST.RunGenData()
-print(GenData_IST.QualityCheck(EXP,OBS,X,TF_emp=False))
-print(GenData_IST.ObsEffect(EXP,'Y'))
-print(GenData_IST.ObsEffect(OBS,'Y'))
-
-TF_sim = False
-listArm = [0,1]
-LB,HB = GenData_IST.ComputeBound(OBS,X)
-U = ComputeMu(EXP,listArm)
+TF_sim = True
+numSim = 200
 
 if TF_sim == True:
+    ''' Externally provided simulation instances '''
     LB = [0.03, 0.21]
     HB = [0.76, 0.4]
-    listU = [0.66,0.36]
+    listU = [0.66, 0.36]
 
     # LB = [0.3, 0.15]
     # HB = [0.34, 7]
     # listU = [0.1, 0.6]
     U = copy.copy(listU)
 
+else:
+    X = 'RXASP'
+    IST, EXP, OBS = GenData_IST.RunGenData()
+    print(GenData_IST.QualityCheck(EXP, OBS, X, TF_emp=False))
+    print(GenData_IST.ComputeEffect(EXP, 'Y'))
+    print(GenData_IST.ComputeEffect(OBS, 'Y'))
+
+    listArm = [0, 1]
+    LB, HB = GenData_IST.ComputeBound(OBS, X)
+    listU = ComputeMu(EXP, listArm)
+    U = copy.copy(listU)
+
+print(CheckCase2BestArm(HB,U))
 if U[0] > U[1]:
     optarm = 0
 else:
     optarm = 1
 
-print(CheckCase2BestArm(HB,U))
 
-numSim = 1
 rounds,dictM = RunSimulation(numSim,TF_causal=False,TF_sim=TF_sim)
 roundsC,dictMC = RunSimulation(numSim,TF_causal=True,TF_sim=TF_sim)
 
-# t,ht= RunBestArm(listArm, TF_causal=False, TF_sim=TF_sim)
-# tC,htC= RunBestArm(listArm, TF_causal=True, TF_sim=TF_sim)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

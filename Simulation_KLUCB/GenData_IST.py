@@ -267,8 +267,6 @@ def RunGenData(sample_N=12000, remember_seed = 1444260861):
     EXP, OBS = HideCovarOBS(EXP, OBS)
     IST = HideCovarDF(IST)
 
-    # EXP = ChangeRXASPtoX(EXP)
-    # OBS = ChangeRXASPtoX(OBS)
     return [IST, EXP,OBS]
 
 def QualityCheck(EXP,OBS,X,TF_emp = False,delta=0.01):
