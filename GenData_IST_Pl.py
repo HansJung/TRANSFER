@@ -137,12 +137,17 @@ def GenEXPPl(IST,policy_list, seed_num=123):
         listSamplePlIST[plidx] = pd.DataFrame(listSamplePlIST[plidx])
     return listSamplePlIST
 
+def ComputeXYEffect(df,X,Y):
+    return [np.mean(df[df[X]==0][Y]),np.mean(df[df[X]==1][Y])]
+
 def GenOBS(EXP, seed_obs = 123):
     np.random.seed(seed_obs)
     sample_list = []
 
     for idx in range(len(EXP)):
         elem = EXP.iloc[idx]
+
+
         elem_treat = elem['RXASP']
         elem_age = elem['AGE']
         elem_sex = elem['SEX']

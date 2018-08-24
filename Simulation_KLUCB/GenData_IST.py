@@ -148,39 +148,83 @@ def GenEXP(IST,sample_N = 10000, remember_seed = 3141693719):
 
 def GenOBS(EXP, seed_obs = 1):
     # Generate OBS from EXP
+
+    def CheckHelthy(Age,Sex,RATRIAL,RVISINF,EXPDD):
+        # SEX = 0 much more healthy ([0.44259246803779878, 0.39391051794638798])
+        # Age = 1 much more healthy ([0.37801539494470776, 0.45799387125220459])
+        # RATRIAL = 1 much more healthy
+        # RVISINF = 0 healthy
+        healthy_sex = (1-Sex)
+        healthy_age = Age
+        healthy_af = RATRIAL
+        healthy_vis = (1-RVISINF)
+        healthy_EXPD = 6*(EXPDD < 0.7)*1
+        listHealth = [healthy_sex,healthy_age,healthy_af,healthy_vis,healthy_EXPD]
+        return sum(listHealth)
+
     np.random.seed(seed_obs)
+
     weight_sick = 0.01
     weight_treatment = 0.99
-
     sample_list = []
-
     for idx in range(len(EXP)):
         elem = EXP.iloc[idx]
-        elem_EXPD = elem['EXPDD']
+        elem_AGE = elem['AGE']
+        elem_SEX = elem['SEX']
+        elem_RATRIAL = elem['RATRIAL']
+        elem_VIS = elem['RVISINF']
+        elem_EXPDD = elem['EXPDD']
+
+        elem_point = CheckHelthy(elem_AGE,elem_SEX,elem_RATRIAL,elem_VIS,elem_EXPDD)
         elem_treat = elem['RXASP']
 
-        # MAKE THIS CODE MORE INTERPRETABLE
-        if elem_treat == 0:
-            if elem_EXPD < 0.7:
-                prob = 0.2
+        if elem_treat == 0: # Non treated
+            if elem_point < 4: # Not healthy
+                probSelect = 0.8
             else:
-                prob = 0.8
-        else:
-            if elem_EXPD < 0.7:
-                prob = 0.8
+                probSelect = 0.2
+        else: # Treated
+            if elem_point < 4: # not healthy
+                probSelect = 0.2
             else:
-                prob = 0.2
-
-        # Computing the selection probability of patients idx
-        selection_prob = np.dot([weight_sick, weight_treatment],[prob, 1-elem_treat])
-
-        if np.random.binomial(1, selection_prob) == 0:
+                probSelect = 0.8
+        probSelect = np.dot([weight_sick, weight_treatment], [probSelect, 1 - elem_treat])
+        if np.random.binomial(1, probSelect) == 0:
             continue
         else:
             sample_list.append(elem)
-
     OBS = pd.DataFrame(sample_list)
     return OBS
+
+    # weight_sick = 0.01
+    # weight_treatment = 0.99
+    # for idx in range(len(EXP)):
+    #     elem = EXP.iloc[idx]
+    #     elem_EXPD = elem['EXPDD']
+    #     elem_treat = elem['RXASP']
+    #
+    #     # MAKE THIS CODE MORE INTERPRETABLE
+    #     if elem_treat == 0:
+    #         if elem_EXPD < 0.7:
+    #             prob = 0.2
+    #         else:
+    #             prob = 0.8
+    #     else:
+    #         if elem_EXPD < 0.7:
+    #             prob = 0.8
+    #         else:
+    #             prob = 0.2
+    #
+    #     # Computing the selection probability of patients idx
+    #     selection_prob = np.dot([weight_sick, weight_treatment],[prob, 1-elem_treat])
+    #
+    #     if np.random.binomial(1, selection_prob) == 0:
+    #         continue
+    #     else:
+    #         sample_list.append(elem)
+    #
+    # OBS = pd.DataFrame(sample_list)
+    # return OBS
 
 def HideCovarDF(DF):
     selected_covariates = ['AGE', 'SEX', 'RXASP', 'Y']
@@ -264,14 +308,15 @@ def ChangeRXASPtoX(df,idx_X=3):
 
 def RunGenData(sample_N=12000, remember_seed = 1444260861):
     # Data load
+    ## Preprocessing
     IST = pd.read_csv('IST.csv')
+    IST_orig = copy.copy(IST)
     IST = ReduceIST(IST)
     IST = IndexifyDisc(IST)
-    IST = ContToDisc(IST) # Continuous variable to discretize
+    IST = ContToDisc(IST)
 
     # remember_seed = SeedFinding(IST,sample_N=12000, alpha=0.01)
-
-    EXP = GenEXP(IST,sample_N,remember_seed)
+    EXP = GenEXP(IST,sample_N,remember_seed) # SO FAR GODO
     OBS = GenOBS(EXP)
 
     EXP, OBS = HideCovarOBS(EXP, OBS)
@@ -293,6 +338,7 @@ def QualityCheck(EXP,OBS,X,TF_emp = False,delta=0.01):
 
     print([lx0, Ux0, hx0])
     print([lx1, Ux1, hx1])
+    print(TF_Case2)
     return(TF_Case2)
 
 if __name__ == "__main__":
