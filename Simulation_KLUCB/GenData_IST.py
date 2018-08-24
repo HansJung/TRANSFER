@@ -180,14 +180,14 @@ def GenOBS(EXP, seed_obs = 1):
 
         if elem_treat == 0: # Non treated
             if elem_point < 4: # Not healthy
-                probSelect = 0.8
-            else:
                 probSelect = 0.2
+            else:
+                probSelect = 0.8
         else: # Treated
             if elem_point < 4: # not healthy
-                probSelect = 0.2
-            else:
                 probSelect = 0.8
+            else:
+                probSelect = 0.2
         probSelect = np.dot([weight_sick, weight_treatment], [probSelect, 1 - elem_treat])
         if np.random.binomial(1, probSelect) == 0:
             continue
@@ -322,7 +322,7 @@ def RunGenData(sample_N=12000, remember_seed = 1444260861):
     EXP, OBS = HideCovarOBS(EXP, OBS)
     IST = HideCovarDF(IST)
 
-    return [IST, EXP,OBS]
+    return [IST, EXP, OBS]
 
 def QualityCheck(EXP,OBS,X,TF_emp = False,delta=0.01):
     if TF_emp:
@@ -338,11 +338,11 @@ def QualityCheck(EXP,OBS,X,TF_emp = False,delta=0.01):
 
     print([lx0, Ux0, hx0])
     print([lx1, Ux1, hx1])
-    print(TF_Case2)
+    # print(TF_Case2)
     return(TF_Case2)
 
 if __name__ == "__main__":
-    EXP,OBS = RunGenData()
+    IST,EXP,OBS = RunGenData()
 
 
 

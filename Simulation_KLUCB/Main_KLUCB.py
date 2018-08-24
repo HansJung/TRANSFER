@@ -16,6 +16,7 @@ def ReceiveRewards(armChosen, EXP):
     return reward
 
 def BinoKL(mu_hat, mu):
+
     if mu_hat == mu:
         return 0
     else:
@@ -23,6 +24,8 @@ def BinoKL(mu_hat, mu):
     return result
 
 def MaxBinarySearch(mu_hat, M, maxval):
+    if M < 0:
+        print(mu_hat,M,"ERROR")
     terminal_cond = 1e-8
     eps = 1e-12
     if mu_hat == 1:
@@ -31,7 +34,9 @@ def MaxBinarySearch(mu_hat, M, maxval):
         mu_hat += eps # diff
     mu = copy.copy(mu_hat)
 
+    iteridx = 0
     while 1:
+        iteridx += 1
         mu_cand = (mu + maxval) / 2
         KL_val = BinoKL(mu_hat, mu_cand)
         diff = np.abs(KL_val - M)
@@ -44,6 +49,16 @@ def MaxBinarySearch(mu_hat, M, maxval):
             mu = copy.copy(mu_cand)
         else:
             maxval = copy.copy(mu_cand)
+
+        if np.abs(mu-maxval) < terminal_cond:
+            return mu
+
+        if iteridx > 2000:
+            print(mu_hat, M, mu, "ERROR")
+            return mu
+
+        # if np.abs(mu - 1) < terminal_cond:
+        #     return mu
 
 def MaxKL(mu_hat, ft, NaT, init_maxval=1):
     maxval = copy.copy(init_maxval)
@@ -63,7 +78,7 @@ def UpdateAfterArm(dictNumArm,dictM,dictLastElem,armChosen,reward):
 def ComputeMu(dictlistNumArmReard, armChoice):
     return np.mean(dictlistNumArmReard[armChoice])
 
-def RunKLUCB(listArm, listHB, listLB, listU, numRound, TF_causal, TF_sim):
+def RunKLUCB(listArm, listHB, listLB, listU, numRound, TF_causal, TF_naive, TF_sim):
     ''' Definition of variable '''
     dictNumArm = dict() # Number of pulling arm a
     dictM = dict() # Average of reward of arm a
@@ -143,7 +158,7 @@ TF_sim = True
 TF_SaveResult = False
 TF_plot = True
 numRound = 2000
-numSim = 10
+numSim = 20
 
 if TF_sim == True:
     ''' Externally provided simulation instances '''
@@ -158,15 +173,15 @@ else:
     X = 'RXASP'
     IST, EXP, OBS = GenData_IST.RunGenData()
     print(GenData_IST.QualityCheck(EXP,OBS,X,TF_emp=False))
-    print(GenData_IST.ComputeEffect(EXP,'Y'))
-    print(GenData_IST.ComputeEffect(OBS,'Y'))
+    print('Experimantal effect', GenData_IST.ComputeEffect(EXP,'Y'))
+    print('Observational effect',GenData_IST.ComputeEffect(OBS,'Y'))
 
     LB,HB = GenData_IST.ComputeBound(OBS,X)
     lx0,lx1 = LB
     hx0,hx1 = HB
     listArm = [0,1]
     listU = GenData_IST.ComputeEffect(EXP,'Y')
-    print(GenData_IST.CheckCase2(HB, listU))
+    print('Case 2?',GenData_IST.CheckCase2(HB, listU))
 
 print("")
 print("Bandit Start")
