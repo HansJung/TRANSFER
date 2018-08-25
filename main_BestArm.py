@@ -157,7 +157,7 @@ def RunSimulation(numSim, TF_causal,TF_sim):
     return rounds / numSim, dictM
 
 
-TF_sim = True
+TF_sim = False
 numSim = 200
 listArm = [0,1]
 

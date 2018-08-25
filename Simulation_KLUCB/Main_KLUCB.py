@@ -53,9 +53,9 @@ def MaxBinarySearch(mu_hat, M, maxval):
         if np.abs(mu-maxval) < terminal_cond:
             return mu
 
-        if iteridx > 2000:
-            print(mu_hat, M, mu, "ERROR")
-            return mu
+        # if iteridx > 2000:
+        #     print(mu_hat, M, mu, "ERROR")
+        #     return mu
 
         # if np.abs(mu - 1) < terminal_cond:
         #     return mu
@@ -90,9 +90,14 @@ def RunKLUCB(listArm, listHB, listLB, listU, numRound, TF_causal, TF_naive, TF_s
     cummRegret = 0
 
     for a in listArm:
-        dictNumArm[a] = 0
-        dictM[a] = 0
-        dictLastElem[a] = 0
+        if TF_naive == True:
+            dictNumArm[a] = listnOBS[a]
+            dictM[a] = listOBSU[a]
+            dictLastElem[a] = 0
+        else:
+            dictNumArm[a] = 0
+            dictM[a] = 0
+            dictLastElem[a] = 0
 
     ''' Initial pulling'''
     # Pulling all arm at once.
@@ -140,13 +145,13 @@ def RunKLUCB(listArm, listHB, listLB, listU, numRound, TF_causal, TF_naive, TF_s
 
     return listTFArmCorrect, listCummRegret
 
-def RunSimulation(numSim, numRound, TF_causal,TF_sim):
+def RunSimulation(numSim, numRound,HB,LB, TF_causal,TF_naive, TF_sim):
     arrayTFArmCorrect = np.array([0]*numRound)
     arrayCummRegret = np.array([0]*numRound)
 
     for k in range(numSim):
         print(k)
-        listTFArmCorrect, listCummRegret = RunKLUCB(listArm, HB, LB, listU, numRound, TF_causal=TF_causal, TF_sim = TF_sim)
+        listTFArmCorrect, listCummRegret = RunKLUCB(listArm, listHB=HB, listLB=LB, listU=listU, numRound=numRound, TF_causal=TF_causal, TF_naive=TF_naive, TF_sim = TF_sim)
         arrayTFArmCorrect = arrayTFArmCorrect + np.asarray(listTFArmCorrect)
         arrayCummRegret = arrayCummRegret + np.asarray(listCummRegret)
 
@@ -154,64 +159,86 @@ def RunSimulation(numSim, numRound, TF_causal,TF_sim):
     MeanCummRegret = arrayCummRegret / numSim
     return [MeanTFArmCorrect, MeanCummRegret]
 
-TF_sim = True
+TF_sim = False
+TF_emp = False
 TF_SaveResult = False
 TF_plot = True
-numRound = 2000
-numSim = 20
+
+numRound = 5000
+numSim = 100
 
 if TF_sim == True:
     ''' Externally provided simulation instances '''
     LB = [0.03, 0.21]
     HB = [0.76, 0.6]
+    listOBSU = [0.4, 0.5]
     listU = [0.66, 0.36]
     listArm = [0, 1]
+    nOBS = 50
+    listnOBS = [100,100]
     print(GenData_IST.CheckCase2(HB,listU))
 
 else:
     ''' Real data'''
     X = 'RXASP'
     IST, EXP, OBS = GenData_IST.RunGenData()
+    # OBS = OBS.sample(n=int(len(OBS)/10))
+    listnOBS = [len(OBS[OBS[X]==0]),len(OBS[OBS[X]==1])]
+    # listnOBS = [5000,5000]
+    # listnOBS = [5905000,79000]
     print(GenData_IST.QualityCheck(EXP,OBS,X,TF_emp=False))
     print('Experimantal effect', GenData_IST.ComputeEffect(EXP,'Y'))
     print('Observational effect',GenData_IST.ComputeEffect(OBS,'Y'))
 
     LB,HB = GenData_IST.ComputeBound(OBS,X)
-    lx0,lx1 = LB
-    hx0,hx1 = HB
+    nOBS = len(OBS)
+    LBe, HBe = GenData_IST.EmpiricalComputeBound(OBS, X,delta=0.01,N=nOBS)
     listArm = [0,1]
+    listOBSU = GenData_IST.ComputeEffect(OBS,'Y')
     listU = GenData_IST.ComputeEffect(EXP,'Y')
-    print('Case 2?',GenData_IST.CheckCase2(HB, listU))
+    print('Case 2 (true)?', GenData_IST.CheckCase2(HB, listU))
+    print('Case 2 (empirical)?',GenData_IST.CheckCase2(HBe, listU))
+    print(LB,HB)
+    print(LBe,HBe)
 
-print("")
-print("Bandit Start")
-MeanTFArmCorrect, MeanCummRegret = RunSimulation(numSim,numRound,TF_causal=False, TF_sim=TF_sim)
-print("-"*100)
-print("")
-MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim,numRound,TF_causal=True,TF_sim=TF_sim)
-
-if TF_SaveResult:
-    # pickle.dump(MeanTFArmCorrect,open('MeanTFArmCorrect.pkl','wb'))
-    # pickle.dump(MeanCummRegret,open('MeanCummRegret.pkl','wb'))
-    # pickle.dump(MeanTFArmCorrect_C,open('MeanTFArmCorrect_C.pkl','wb'))
-    # pickle.dump(MeanCummRegret_C,open('MeanCummRegret_C.pkl','wb'))
-
-    scipy.io.savemat('MeanTFArmCorrect.mat', mdict={'MeanTFArmCorrect': MeanTFArmCorrect})
-    scipy.io.savemat('MeanCummRegret.mat', mdict={'MeanCummRegret': MeanCummRegret})
-    scipy.io.savemat('MeanTFArmCorrect_C.mat', mdict={'MeanTFArmCorrect_C': MeanTFArmCorrect_C})
-    scipy.io.savemat('MeanCummRegret_C.mat', mdict={'MeanCummRegret_C': MeanCummRegret_C})
-
-if TF_plot == True:
-    plt.figure(1)
-    plt.title('Prob Opt')
-    plt.plot(MeanTFArmCorrect,label='KLUCB')
-    plt.plot(MeanTFArmCorrect_C, label='B-KLUCB')
-    plt.legend()
-
-    plt.figure(2)
-    plt.title('Cummul. Regret')
-    plt.plot(MeanCummRegret,label='KLUCB')
-    plt.plot(MeanCummRegret_C, label='B-KLUCB')
-    plt.legend()
-
-    plt.show()
+# print("")
+# # print("Bandit: Naive")
+# # MeanTFArmCorrect_N, MeanCummRegret_N = RunSimulation(numSim,numRound,TF_causal=False, TF_naive = True, TF_sim=TF_sim)
+# # print("-"*100)
+# print("")
+# print("Bandit: KLUCB-e")
+# print(LBe,HBe)
+# MeanTFArmCorrect_e, MeanCummRegret_e = RunSimulation(numSim,numRound, HB=HBe, LB=LBe, TF_causal=True, TF_naive = False, TF_sim=TF_sim)
+# print("Bandit: KLUCB")
+# MeanTFArmCorrect, MeanCummRegret = RunSimulation(numSim,numRound, HB=HB, LB=LB, TF_causal=False, TF_naive = False, TF_sim=TF_sim)
+# print("-"*100)
+# print("Bandit: C-KLUCB")
+# MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim,numRound,HB=HB, LB=LB,TF_causal=True, TF_naive = False, TF_sim=TF_sim)
+#
+# if TF_SaveResult:
+#     # pickle.dump(MeanTFArmCorrect,open('MeanTFArmCorrect.pkl','wb'))
+#     # pickle.dump(MeanCummRegret,open('MeanCummRegret.pkl','wb'))
+#     # pickle.dump(MeanTFArmCorrect_C,open('MeanTFArmCorrect_C.pkl','wb'))
+#     # pickle.dump(MeanCummRegret_C,open('MeanCummRegret_C.pkl','wb'))
+#
+#     scipy.io.savemat('MeanTFArmCorrect.mat', mdict={'MeanTFArmCorrect': MeanTFArmCorrect})
+#     scipy.io.savemat('MeanCummRegret.mat', mdict={'MeanCummRegret': MeanCummRegret})
+#     scipy.io.savemat('MeanTFArmCorrect_C.mat', mdict={'MeanTFArmCorrect_C': MeanTFArmCorrect_C})
+#     scipy.io.savemat('MeanCummRegret_C.mat', mdict={'MeanCummRegret_C': MeanCummRegret_C})
+#
+# if TF_plot == True:
+#     plt.figure(1)
+#     plt.title('Prob Opt')
+#     plt.plot(MeanTFArmCorrect_e,label='KLUCB-e')
+#     plt.plot(MeanTFArmCorrect,label='KLUCB')
+#     plt.plot(MeanTFArmCorrect_C, label='B-KLUCB')
+#     plt.legend()
+#
+#     plt.figure(2)
+#     plt.title('Cummul. Regret')
+#     plt.plot(MeanCummRegret_e, label='KLUCB-e')
+#     plt.plot(MeanCummRegret,label='KLUCB')
+#     plt.plot(MeanCummRegret_C, label='B-KLUCB')
+#     plt.legend()
+#
+#     plt.show()

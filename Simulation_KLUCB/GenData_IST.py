@@ -141,90 +141,91 @@ def SeedFinding(IST, sample_N, alpha=0.01):
     return remember_seed
 
 
-def GenEXP(IST,sample_N = 10000, remember_seed = 3141693719):
+def GenEXP(IST,sample_N, remember_seed = 3141693719):
     np.random.seed(remember_seed)
     EXP = IST.sample(n=sample_N)
     return EXP
 
 def GenOBS(EXP, seed_obs = 1):
     # Generate OBS from EXP
-
-    def CheckHelthy(Age,Sex,RATRIAL,RVISINF,EXPDD):
-        # SEX = 0 much more healthy ([0.44259246803779878, 0.39391051794638798])
-        # Age = 1 much more healthy ([0.37801539494470776, 0.45799387125220459])
-        # RATRIAL = 1 much more healthy
-        # RVISINF = 0 healthy
-        healthy_sex = (1-Sex)
-        healthy_age = Age
-        healthy_af = RATRIAL
-        healthy_vis = (1-RVISINF)
-        healthy_EXPD = 6*(EXPDD < 0.7)*1
-        listHealth = [healthy_sex,healthy_age,healthy_af,healthy_vis,healthy_EXPD]
-        return sum(listHealth)
-
-    np.random.seed(seed_obs)
+    #
+    # def CheckHelthy(Age,Sex,RATRIAL,RVISINF,EXPDD):
+    #     # SEX = 0 much more healthy ([0.44259246803779878, 0.39391051794638798])
+    #     # Age = 1 much more healthy ([0.37801539494470776, 0.45799387125220459])
+    #     # RATRIAL = 1 much more healthy
+    #     # RVISINF = 0 healthy
+    #     healthy_sex = (1-Sex)
+    #     healthy_age = Age
+    #     healthy_af = RATRIAL
+    #     healthy_vis = (1-RVISINF)
+    #     healthy_EXPD = 6*(EXPDD < 0.7)*1
+    #     listHealth = [healthy_sex,healthy_age,healthy_af,healthy_vis,healthy_EXPD]
+    #     return sum(listHealth)
+    #
+    # np.random.seed(seed_obs)
+    #
+    # weight_sick = 0.001
+    # weight_treatment = 0.999
+    # sample_list = []
+    # for idx in range(len(EXP)):
+    #     elem = EXP.iloc[idx]
+    #     elem_AGE = elem['AGE']
+    #     elem_SEX = elem['SEX']
+    #     elem_RATRIAL = elem['RATRIAL']
+    #     elem_VIS = elem['RVISINF']
+    #     elem_EXPDD = elem['EXPDD']
+    #
+    #     elem_point = CheckHelthy(elem_AGE,elem_SEX,elem_RATRIAL,elem_VIS,elem_EXPDD)
+    #     elem_treat = elem['RXASP']
+    #
+    #     if elem_treat == 0: # Non treated
+    #         if elem_point < 4: # Not healthy
+    #             probSelect = 0.9
+    #         else: # Healthy
+    #             probSelect = 0.1
+    #     else: # Treated
+    #         if elem_point < 4: # not healthy
+    #             probSelect = 0.1
+    #         else:
+    #             probSelect = 0.9
+    #     probSelect = np.dot([weight_sick, weight_treatment], [probSelect, 1-elem_treat])
+    #     if np.random.binomial(1, probSelect) == 0:
+    #         continue
+    #     else:
+    #         sample_list.append(elem)
+    # OBS = pd.DataFrame(sample_list)
+    # return OBS
 
     weight_sick = 0.01
     weight_treatment = 0.99
     sample_list = []
     for idx in range(len(EXP)):
         elem = EXP.iloc[idx]
-        elem_AGE = elem['AGE']
-        elem_SEX = elem['SEX']
-        elem_RATRIAL = elem['RATRIAL']
-        elem_VIS = elem['RVISINF']
-        elem_EXPDD = elem['EXPDD']
-
-        elem_point = CheckHelthy(elem_AGE,elem_SEX,elem_RATRIAL,elem_VIS,elem_EXPDD)
+        elem_EXPD = elem['EXPDD']
         elem_treat = elem['RXASP']
 
-        if elem_treat == 0: # Non treated
-            if elem_point < 4: # Not healthy
-                probSelect = 0.2
+        # MAKE THIS CODE MORE INTERPRETABLE
+        if elem_treat == 0:
+            if elem_EXPD < 0.7: # Healthy
+                prob = 0.2
             else:
-                probSelect = 0.8
-        else: # Treated
-            if elem_point < 4: # not healthy
-                probSelect = 0.8
+                prob = 0.9
+        else:
+            if elem_EXPD < 0.7:
+                prob = 0.9
             else:
-                probSelect = 0.2
-        probSelect = np.dot([weight_sick, weight_treatment], [probSelect, 1 - elem_treat])
-        if np.random.binomial(1, probSelect) == 0:
+                prob = 0.2
+
+        # Computing the selection probability of patients idx
+        selection_prob = np.dot([weight_sick, weight_treatment],[prob, 1-elem_treat])
+
+        if np.random.binomial(1, selection_prob) == 0:
             continue
         else:
             sample_list.append(elem)
+
     OBS = pd.DataFrame(sample_list)
     return OBS
-
-    # weight_sick = 0.01
-    # weight_treatment = 0.99
-    # for idx in range(len(EXP)):
-    #     elem = EXP.iloc[idx]
-    #     elem_EXPD = elem['EXPDD']
-    #     elem_treat = elem['RXASP']
-    #
-    #     # MAKE THIS CODE MORE INTERPRETABLE
-    #     if elem_treat == 0:
-    #         if elem_EXPD < 0.7:
-    #             prob = 0.2
-    #         else:
-    #             prob = 0.8
-    #     else:
-    #         if elem_EXPD < 0.7:
-    #             prob = 0.8
-    #         else:
-    #             prob = 0.2
-    #
-    #     # Computing the selection probability of patients idx
-    #     selection_prob = np.dot([weight_sick, weight_treatment],[prob, 1-elem_treat])
-    #
-    #     if np.random.binomial(1, selection_prob) == 0:
-    #         continue
-    #     else:
-    #         sample_list.append(elem)
-    #
-    # OBS = pd.DataFrame(sample_list)
-    # return OBS
 
 def HideCovarDF(DF):
     selected_covariates = ['AGE', 'SEX', 'RXASP', 'Y']
@@ -234,7 +235,7 @@ def HideCovarDF(DF):
     return DF
 
 def HideCovarOBS(EXP,OBS):
-    selected_covariates = ['AGE', 'SEX', 'RXASP', 'Y']
+    selected_covariates = ['AGE', 'SEX','EXPDD', 'RXASP', 'Y']
 
     ## Resulting dataset
     EXP = EXP[selected_covariates]
@@ -258,22 +259,27 @@ def ComputeBound(OBS,X):
 
     return [[Lx0,Lx1],[Hx0,Hx1]]
 
-def EmpiricalComputeBound(OBS,X,delta):
-    N = len(OBS)
+def EmpiricalComputeBound(OBS,X,delta,N):
+    possible_case = 2**32 -1
+    seed_num = np.random.randint(possible_case)
+    np.random.seed(seed_num)
+
+    # sampleOBS = OBS.sample(n=N)
+    sampleOBS = OBS.iloc[:N]
     delta = delta/2
     fn = np.sqrt(((2 * N) ** (-1)) * (np.log(4) - np.log(delta)))
 
-    Px0 = len(OBS[OBS[X] == 0]) / len(OBS)
-    Px1 = len(OBS[OBS[X] == 1]) / len(OBS)
+    Px0 = len(sampleOBS[sampleOBS[X] == 0]) / N
+    Px1 = len(sampleOBS[sampleOBS[X] == 1]) / N
 
-    Lx0 = np.mean((OBS[X] == 0) * OBS['Y'])
-    Lx1 = np.mean((OBS[X] == 1) * OBS['Y'])
+    Lx0_before = np.mean((sampleOBS[X] == 0) * sampleOBS['Y'])
+    Lx1_before = np.mean((sampleOBS[X] == 1) * sampleOBS['Y'])
 
-    Lx0 = max(0,Lx0 - fn)
-    Lx1 = max(0,Lx1 - fn)
+    Lx0 = max(0,Lx0_before - fn)
+    Lx1 = max(0,Lx1_before - fn)
 
-    Hx0 = Lx0 + Px1
-    Hx1 = Lx1 + Px0
+    Hx0 = Lx0_before + Px1
+    Hx1 = Lx1_before + Px0
 
     Hx0 = min(Hx0 + fn,1)
     Hx1 = min(Hx1 + fn,1)
@@ -307,6 +313,8 @@ def ChangeRXASPtoX(df,idx_X=3):
     return df
 
 def RunGenData(sample_N=12000, remember_seed = 1444260861):
+    sample_N = 14000
+    remember_seed = 1444260861
     # Data load
     ## Preprocessing
     IST = pd.read_csv('IST.csv')
@@ -317,7 +325,11 @@ def RunGenData(sample_N=12000, remember_seed = 1444260861):
 
     # remember_seed = SeedFinding(IST,sample_N=12000, alpha=0.01)
     EXP = GenEXP(IST,sample_N,remember_seed) # SO FAR GODO
-    OBS = GenOBS(EXP)
+    # tempOBS = GenOBS(EXP)
+    # print(ComputeEffect(EXP,'Y'))
+    # print(ComputeEffect(tempOBS, 'Y'))
+    # print(QualityCheck(EXP,tempOBS,'RXASP'))
+    OBS = GenOBS(EXP,20)
 
     EXP, OBS = HideCovarOBS(EXP, OBS)
     IST = HideCovarDF(IST)
@@ -343,6 +355,33 @@ def QualityCheck(EXP,OBS,X,TF_emp = False,delta=0.01):
 
 if __name__ == "__main__":
     IST,EXP,OBS = RunGenData()
+
+    # import pandas as pd
+    # import scipy.io
+    #
+    # scipy.io.savemat('OBS.mat', {'OBS': OBS.to_dict("list")})
+    # scipy.io.savemat('EXP.mat', {'EXP': EXP.to_dict("list")})
+
+
+    # nOBS = 10000
+    # sumLB = np.array([0,0])
+    # sumHB = np.array([0,0])
+    # for idx in range(100):
+    #     LB,HB = EmpiricalComputeBound(OBS.sample(n=nOBS), 'RXASP', 0.01)
+    #     LB = np.array(LB)
+    #     HB = np.array(HB)
+    #     sumLB = sumLB + LB
+    #     sumHB = sumHB + HB
+    # print(sumLB/100,sumHB/100)
+
+    # for age in [0, 1]:
+    #     for sex in [0, 1]:
+    #         for biexpd in [0, 1]:
+    #             for x in [0, 1]:
+    #                 expected = np.mean(EXP[(EXP['AGE'] == age) & (EXP['SEX'] == sex) & (EXP['BiEXPD'] == biexpd) & (
+    #                 EXP['RXASP'] == x)]['Y'])
+    #                 print('E[Yx|u]', expected, 'when X=', x, 'Z=', '(', age, sex, biexpd, ')')
+
 
 
 

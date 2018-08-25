@@ -362,35 +362,35 @@ else:
     LB, U, HB = GenData.QualityCheck(listEXP, OBS, listPolicy)
     print(GenData.CheckCase2(HB, U))
 
-optpl = np.argmax(U)
-uopt = U[optpl]
-usubopt = U[1-optpl]
-
-MeanTFArmCorrect, MeanCummRegret = RunSimulation(numSim, numRound, TF_causal=False,TF_sim=TF_sim)
-MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim, numRound, TF_causal=True,TF_sim=TF_sim)
-
-if TF_SaveResult:
-    scipy.io.savemat('MeanTFArmCorrect.mat', mdict={'MeanTFArmCorrect': MeanTFArmCorrect})
-    scipy.io.savemat('MeanCummRegret.mat', mdict={'MeanCummRegret': MeanCummRegret})
-    scipy.io.savemat('MeanTFArmCorrect_C.mat', mdict={'MeanTFArmCorrect_C': MeanTFArmCorrect_C})
-    scipy.io.savemat('MeanCummRegret_C.mat', mdict={'MeanCummRegret_C': MeanCummRegret_C})
-
-if TF_plot:
-    plt.figure(1)
-    plt.title('Prob Opt')
-    plt.plot(MeanTFArmCorrect, label='DUCB')
-    plt.plot(MeanTFArmCorrect_C, label='C-DUCB')
-    plt.legend()
-
-    plt.figure(2)
-    plt.title('Cummul. Regret')
-    plt.plot(MeanCummRegret, label='DUCB')
-    plt.plot(MeanCummRegret_C, label='C-DUCB')
-    plt.legend()
-
-    plt.show()
-
-
-
+# optpl = np.argmax(U)
+# uopt = U[optpl]
+# usubopt = U[1-optpl]
+#
+# MeanTFArmCorrect, MeanCummRegret = RunSimulation(numSim, numRound, TF_causal=False,TF_sim=TF_sim)
+# MeanTFArmCorrect_C, MeanCummRegret_C = RunSimulation(numSim, numRound, TF_causal=True,TF_sim=TF_sim)
+#
+# if TF_SaveResult:
+#     scipy.io.savemat('MeanTFArmCorrect.mat', mdict={'MeanTFArmCorrect': MeanTFArmCorrect})
+#     scipy.io.savemat('MeanCummRegret.mat', mdict={'MeanCummRegret': MeanCummRegret})
+#     scipy.io.savemat('MeanTFArmCorrect_C.mat', mdict={'MeanTFArmCorrect_C': MeanTFArmCorrect_C})
+#     scipy.io.savemat('MeanCummRegret_C.mat', mdict={'MeanCummRegret_C': MeanCummRegret_C})
+#
+# if TF_plot:
+#     plt.figure(1)
+#     plt.title('Prob Opt')
+#     plt.plot(MeanTFArmCorrect, label='DUCB')
+#     plt.plot(MeanTFArmCorrect_C, label='C-DUCB')
+#     plt.legend()
+#
+#     plt.figure(2)
+#     plt.title('Cummul. Regret')
+#     plt.plot(MeanCummRegret, label='DUCB')
+#     plt.plot(MeanCummRegret_C, label='C-DUCB')
+#     plt.legend()
+#
+#     plt.show()
+#
+#
+#
 
 
