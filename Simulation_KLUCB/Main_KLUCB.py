@@ -165,7 +165,7 @@ TF_SaveResult = False
 TF_plot = True
 
 numRound = 2000
-numSim = 10
+numSim = 2
 
 if TF_sim == True:
     ''' Externally provided simulation instances '''
@@ -182,9 +182,10 @@ else:
     ''' Real data'''
     EXP, OBS = GenData_IST.RunGenData()
     # OBS = OBS.sample(n=int(len(OBS)/10))
+    # listnOBS = [1200,500]
     listnOBS = [len(OBS[OBS['RXASP']==0]),len(OBS[OBS['RXASP']==1])]
     listOBSU = GenData_IST.ComputeEffect(OBS, 'RXASP', 'Y')
-    # listnOBS = [100,500]
+    # listnOBS = [5000,600]
     # listnOBS = [50000,50000]
     # listnOBS = [5905000,79000]
     # print(GenData_IST.QualityCheck(EXP,OBS,'RXASP',TF_emp=False))

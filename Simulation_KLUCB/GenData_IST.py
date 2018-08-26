@@ -136,13 +136,13 @@ def GenOBS(EXP,params):
 
         # MAKE THIS CODE MORE INTERPRETABLE
         if elem_treat == 0:
-            if healthy(elem_treat,elem_age,elem_sex,elem_consc,params) < 0.4:
+            if healthy(elem_treat,elem_age,elem_sex,elem_consc,params) < 0.5:
                 prob = 0.01
             else:
-                prob = 0.6
+                prob = 0.9
         else:
-            if healthy(elem_treat, elem_age, elem_sex, elem_consc, params) < 0.35:
-                prob = 0.4
+            if healthy(elem_treat, elem_age, elem_sex, elem_consc, params) < 0.6:
+                prob = 0.5
             else:
                 prob = 0.01
 
@@ -258,7 +258,7 @@ def RunGenData():
     discrete_variables = ['SEX', 'RCONSC', 'RXASP']
     continuous_variables = ['AGE', 'EXPDD']
     necessary_set = ['RXASP', 'AGE', 'SEX', 'RCONSC']
-    params = [0.2, -0.2, 0.2, 0.2]
+    params = [0.4, -0.2, 0.2, 0.2]
 
     # Data load
     ## Preprocessing
@@ -276,6 +276,7 @@ def RunGenData():
     print("EXP", ComputeEffect(EXP, 'RXASP', 'Y'))
     print('Non-Emp',QualityCheck(EXP,OBS,'RXASP'))
     print('Emp', QualityCheck(EXP, OBS, 'RXASP',TF_emp=True,delta=0.01))
+    print(len(OBS[OBS['RXASP']==0]),len(OBS[OBS['RXASP']==1]))
 
     selected_covariates = ['AGE', 'SEX', 'RXASP', 'Y']
     EXP, OBS = HideCovarOBS(EXP, OBS,selected_covariates)
