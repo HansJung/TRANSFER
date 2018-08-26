@@ -53,13 +53,6 @@ def MaxBinarySearch(mu_hat, M, maxval):
         if np.abs(mu-maxval) < terminal_cond:
             return mu
 
-        # if iteridx > 2000:
-        #     print(mu_hat, M, mu, "ERROR")
-        #     return mu
-
-        # if np.abs(mu - 1) < terminal_cond:
-        #     return mu
-
 def MaxKL(mu_hat, ft, NaT, init_maxval=1):
     maxval = copy.copy(init_maxval)
     M = ft/NaT

@@ -120,43 +120,60 @@ def GenEXP(IST,sample_N, remember_seed = 3141693719):
     EXP = IST.sample(n=sample_N)
     return EXP
 
-def GenOBS(EXP,params):
-    np.random.seed(1)
-    def healthy(x,age,sex,consc,params):
-        return np.dot([x,age,sex,consc],params)
-
-    sample_list = []
-    for idx in range(len(EXP)-1):
+def GenOBS(EXP, seed_obs = 1):
+    pxu = [0, 0, 0, 0, 0, 0, 1, 0.2, 0.1, 0, 0, 0]
+    listSample = []
+    for idx in range(len(EXP)):
         elem = EXP.iloc[idx]
-        elem_EXPD = elem['EXPDD']
-        elem_age = elem['AGE']
-        elem_sex = elem['SEX']
-        elem_consc = elem['RCONSC']
         elem_treat = elem['RXASP']
+        elem_sex = elem['SEX']
+        elem_age = elem['AGE']
+        elem_RCONSC = elem['RCONSC']
 
-        # MAKE THIS CODE MORE INTERPRETABLE
-        if elem_treat == 0:
-            if healthy(elem_treat,elem_age,elem_sex,elem_consc,params) < 0.5:
-                prob = 0.01
-            else:
-                prob = 0.9
-        else:
-            if healthy(elem_treat, elem_age, elem_sex, elem_consc, params) < 0.6:
-                prob = 0.5
-            else:
-                prob = 0.01
-
-        # Computing the selection probability of patients idx
-        # selection_prob = np.dot([weight_sick, weight_treatment],[prob, 1-elem_treat])
-        # print(idx, prob, selection_prob)
-
-        if np.random.binomial(1, prob) == 0:
-            continue
-        else:
-            sample_list.append(elem)
-
-    OBS = pd.DataFrame(sample_list)
+        u = int(6*elem_age + 3*elem_sex + elem_RCONSC + 1)
+        x = np.random.binomial(1,pxu[u-1])
+        if x == elem_treat:
+            listSample.append(elem)
+    OBS = pd.DataFrame(listSample)
     return OBS
+
+# def GenOBS(EXP,params):
+#     np.random.seed(1)
+#     def healthy(x,age,sex,consc,params):
+#         return np.dot([x,age,sex,consc],params)
+#
+#     sample_list = []
+#     for idx in range(len(EXP)-1):
+#         elem = EXP.iloc[idx]
+#         elem_EXPD = elem['EXPDD']
+#         elem_age = elem['AGE']
+#         elem_sex = elem['SEX']
+#         elem_consc = elem['RCONSC']
+#         elem_treat = elem['RXASP']
+#
+#         # MAKE THIS CODE MORE INTERPRETABLE
+#         if elem_treat == 0:
+#             if healthy(elem_treat,elem_age,elem_sex,elem_consc,params) < 0.5:
+#                 prob = 0.01
+#             else:
+#                 prob = 0.9
+#         else:
+#             if healthy(elem_treat, elem_age, elem_sex, elem_consc, params) < 0.6:
+#                 prob = 0.5
+#             else:
+#                 prob = 0.01
+#
+#         # Computing the selection probability of patients idx
+#         # selection_prob = np.dot([weight_sick, weight_treatment],[prob, 1-elem_treat])
+#         # print(idx, prob, selection_prob)
+#
+#         if np.random.binomial(1, prob) == 0:
+#             continue
+#         else:
+#             sample_list.append(elem)
+#
+#     OBS = pd.DataFrame(sample_list)
+#     return OBS
 
 def HideCovarDF(DF):
     selected_covariates = ['AGE', 'SEX', 'RXASP', 'Y']
@@ -240,14 +257,10 @@ def ChangeRXASPtoX(df,idx_X=3):
 
 
 
-def GenAddY(df,necessary_set,params):
-    df['Y'] = df[necessary_set[0]] * params[0]
-    for idx in range(1,len(necessary_set)):
-        df['Y'] = df['Y'] + df[necessary_set[idx]]*params[idx]
+def GenAddY(df,necessary_set):
+    df['Y'] = df[necessary_set[0]] + 0.5*df[necessary_set[2]] + 0.2*(df[necessary_set[3]]-1) - df[necessary_set[0]]*df[necessary_set[1]]
     df['Y'] = df['Y'] + np.random.normal(loc=0,scale=0.1,size=len(df))
-    maxY = max(df['Y'])
-    minY = min(df['Y'])
-    df['Y'] = (df['Y']-minY)/(maxY-minY)
+    df['Y'] = 1 / (1 + np.exp(-df['Y']))
     return df
 
 
@@ -270,8 +283,8 @@ def RunGenData():
     IST['RCONSC'] = 1 * (IST['RCONSC'] == 0) + 0 * (IST['RCONSC'] == 2) + 2 * (IST['RCONSC'] == 1)
 
     IST = ContToDisc(IST, continuous_variables)
-    EXP = GenAddY(IST, necessary_set, params)
-    OBS = GenOBS(EXP, params)
+    EXP = GenAddY(IST, necessary_set)
+    OBS = GenOBS(EXP)
     print("OBS", ComputeEffect(OBS, 'RXASP', 'Y'))
     print("EXP", ComputeEffect(EXP, 'RXASP', 'Y'))
     print('Non-Emp',QualityCheck(EXP,OBS,'RXASP'))

@@ -5,11 +5,11 @@ import itertools
 import matplotlib.pyplot as plt
 import scipy.io
 
+
 def ObserveZSim(Pz):
     zPossible = [[0, 0], [0, 1], [1, 0], [1, 1]]
     zCase = np.random.choice(len(Pz), p=Pz)
     return zPossible[zCase]
-
 
 def ExpectedOutcomeSim(pl):
     zPossible = [[0, 0], [0, 1], [1, 0], [1, 1]]
@@ -48,14 +48,22 @@ def ReceiveRewardsSim(plidxChosen,armChosen,listU):
     reward = np.random.binomial(1,ua)
     return reward
 
-def ReceiveRewards(plidxChosen, armChosen, listEXP):
-    X = 'RXASP'
-    EXPi = listEXP[plidxChosen]
-    reward = list(EXPi[EXPi[X] == armChosen].sample(1)['Y'])[0]
 
-    # EXPi[X == armChosen]
-    # reward = EXPi.iloc[dictlistNumPolicyArm[plidxChosen][armChosen]]['Y']
+def ReceiveRewards(armChosen, zObserved, EXP):
+    # sample from Y ~ E[Yx|z]
+    age = zObserved[0]
+    sex = zObserved[1]
+    reward = EXP[(EXP['RXASP']==armChosen) & (EXP['AGE']==age) & (EXP['SEX']==sex)].sample(1)['Y'][0]
     return reward
+
+# def ReceiveRewards(plidxChosen, armChosen, listEXP):
+#     X = 'RXASP'
+#     EXPi = listEXP[plidxChosen]
+#     reward = list(EXPi[EXPi[X] == armChosen].sample(1)['Y'])[0]
+#
+#     # EXPi[X == armChosen]
+#     # reward = EXPi.iloc[dictlistNumPolicyArm[plidxChosen][armChosen]]['Y']
+#     return reward
 
 def ComputeMpqSim(p,q):
     def f1(x):

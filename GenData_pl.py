@@ -23,53 +23,25 @@ def IST_LabelEncoder(IST, ColName):
     IST[ColName] = COL
     return IST
 
-def ReduceIST(IST):
-    IST = IST.loc[pd.isnull(IST['RATRIAL']) == False]
-    ## If No dead informatino, then exlucde
-    # IST = IST.loc[(IST['FDEAD'] != 'U')]
-    ## If No recover informatino, then exlucde
+def ReduceIST(IST, chosen_variables):
+    # Exclude patients not having AF
+    # IST = IST.loc[pd.isnull(IST['RATRIAL']) == False]
+    # Exclude patients having no recovery information
     IST = IST.loc[(IST['FRECOVER']) != 'U']
-    ## Patients without taking Heparin, b/c, we are only interested in Aspirin
-    # IST = IST.loc[(IST['RXHEP'] == 'N')]
-    # ## Patients dead from other causes are exlucded.
-    IST = IST.loc[(IST['DEAD7'] == 0) & (IST['DEAD8'] == 0)]
-    ## Patients only complied
-    # IST = IST.loc[(IST['CMPLASP'] == 'Y')]
-
-    chosen_variables = ['SEX', 'AGE',
-                        'RSLEEP', 'RATRIAL', 'RCONSC', 'RDELAY', 'RVISINF', 'RSBP',
-                        'RXASP',
-                        'FRECOVER',
-                        'EXPDD'
-                        ]
+    IST = IST.loc[(IST['FDEAD'])!= 'U']
     IST = IST[chosen_variables]
-    IST = IST.dropna()
-
-    IST = IndexifyDisc(IST)
-
-    outcome = 1 * IST['FRECOVER'] - (1 - 1 * IST['EXPDD'])
-    outcome = (outcome + 1) / 2
-    outcome = pd.DataFrame({'Y': outcome})
-    IST = pd.concat([IST, outcome], axis=1)
     return IST
 
-def IndexifyDisc(IST):
-    discrete_variables = ['SEX', 'RSLEEP', 'RATRIAL', 'RCONSC',
-                          'RVISINF', 'RXASP',
-                          'FRECOVER'
-                          ]
-
+def IndexifyDisc(IST, discrete_variables):
     for disc_val in discrete_variables:
         IST = IST_LabelEncoder(IST, disc_val)
     return IST
 
-def ContToDisc(IST):
+def ContToDisc(IST,continuous_variables):
     # Discretize the continuous variable
-    continuous_variable = ['RSBP', 'AGE', 'RDELAY']  # list(set(chosen_variables) - set(discrete_variables))
-    IST['AGE'] = BinaryCategorize(IST['AGE'])
-    # IST['AGE'] = ThreeCategorize(IST['AGE'])
-    IST['RSBP'] = ThreeCategorize(IST['RSBP'])
-    IST['RDELAY'] = ThreeCategorize(IST['RDELAY'])
+    # continuous_variable = ['RSBP', 'AGE', 'RDELAY']  # list(set(chosen_variables) - set(discrete_variables))
+    for cont_val in continuous_variables:
+        IST[cont_val] = BinaryCategorize(IST[cont_val])
     return IST
 
 def ThreeCategorize(df):
@@ -91,7 +63,7 @@ def BinaryCategorize(df):
 
     return df_copy
 
-def drawPolicy(pl,Z):
+def drawArmFromPolicy(pl,Z):
     prob0, prob1 = pl(Z[0],Z[1])
     return np.random.binomial(n=1, p=prob1, size=1)[0]
 
@@ -100,6 +72,7 @@ def SigTestPl(df1, df2):
     return pval
 
 def ExpectedOutcomePl(EXP,pl):
+    X = 'RXASP'
     sum_prob = 0
     for age in [0,1]:
         for sex in [0,1]:
@@ -140,31 +113,50 @@ def GenEXPPl(IST,policy_list, seed_num=123):
 def ComputeXYEffect(df,X,Y):
     return [np.mean(df[df[X]==0][Y]),np.mean(df[df[X]==1][Y])]
 
-def GenOBS(EXP, seed_obs = 123):
-    np.random.seed(seed_obs)
-    sample_list = []
-
+def GenOBS(EXP, seed_obs = 1):
+    pxu = [0, 0, 0, 0, 0, 0, 1, 0.2, 0.1, 0, 0, 0]
+    listSample = []
     for idx in range(len(EXP)):
         elem = EXP.iloc[idx]
-
-
         elem_treat = elem['RXASP']
-        elem_age = elem['AGE']
         elem_sex = elem['SEX']
+        elem_age = elem['AGE']
+        elem_RCONSC = elem['RCONSC']
 
-        if elem_age == 0 and elem_sex == 0 and elem_treat == 1:
-            prob = 0.9955
-        else:
-            prob = 0.0045
-
-        selection_prob = prob
-        if np.random.binomial(1, selection_prob) == 0:
-            continue
-        else:
-            sample_list.append(elem)
-
-    OBS = pd.DataFrame(sample_list)
+        u = int(6*elem_age + 3*elem_sex + elem_RCONSC + 1)
+        print(u)
+        x = np.random.binomial(1,pxu[u-1])
+        if x == elem_treat:
+            listSample.append(elem)
+    OBS = pd.DataFrame(listSample)
     return OBS
+
+
+
+    # np.random.seed(seed_obs)
+    # sample_list = []
+    #
+    # for idx in range(len(EXP)):
+    #     elem = EXP.iloc[idx]
+    #
+    #
+    #     elem_treat = elem['RXASP']
+    #     elem_age = elem['AGE']
+    #     elem_sex = elem['SEX']
+    #
+    #     if elem_age == 0 and elem_sex == 0 and elem_treat == 1:
+    #         prob = 0.9955
+    #     else:
+    #         prob = 0.0045
+    #
+    #     selection_prob = prob
+    #     if np.random.binomial(1, selection_prob) == 0:
+    #         continue
+    #     else:
+    #         sample_list.append(elem)
+    #
+    # OBS = pd.DataFrame(sample_list)
+    # return OBS
 
 
 def GenOBSPl(EXP,sample_N, seed_num):
@@ -212,8 +204,10 @@ def CheckCase2(HB,U):
 
 def PolicyGen(low_prob=0.005, high_prob=0.995):
     pl1 = lambda age, sex: [low_prob, high_prob] if ((age == 0) and (sex == 0)) else [high_prob, low_prob]
-    pl2 = lambda age, sex: [high_prob, low_prob] if ((age == 0) and (sex == 0)) else [low_prob, high_prob]
-    policy_list = [pl1, pl2]
+    pl2 = lambda age, sex: [low_prob, high_prob] if ((age == 0) and (sex == 1)) else [high_prob, low_prob]
+    pl3 = lambda age, sex: [low_prob, high_prob] if ((age == 1) and (sex == 0)) else [high_prob, low_prob]
+    pl4 = lambda age, sex: [low_prob, high_prob] if ((age == 1) and (sex == 1)) else [high_prob, low_prob]
+    policy_list = [pl1, pl2, pl3, pl4]
     return policy_list
 
 def LB_U_HB(listEXP,OBS, policy_list):
@@ -232,32 +226,74 @@ def LB_U_HB(listEXP,OBS, policy_list):
 
     return [LB,U,HB]
 
+def GenAddY(df,necessary_set):
+    df['Y'] = df[necessary_set[0]] + 0.5*df[necessary_set[2]] + 0.2*(df[necessary_set[3]]-1) - df[necessary_set[0]]*df[necessary_set[1]]
+    df['Y'] = df['Y'] + np.random.normal(loc=0,scale=0.1,size=len(df))
+    df['Y'] = 1 / (1 + np.exp(-df['Y']))
+    return df
+
+def GenEXPY(EXP,pl):
+    np.random.seed(1)
+    listY = []
+    X = 'RXASP'
+    m = 0
+    n = 0
+
+    num_iter = 3000
+
+    for idx in range(num_iter):
+        # if idx % 100 == 0:
+        #     print(idx)
+        z = list(EXP[['AGE','SEX']].iloc[idx])
+        age,sex = z
+        x = drawArmFromPolicy(pl,z)
+        y = list(EXP[(EXP['AGE']==age) & (EXP['SEX']==sex) & (EXP[X]==x)].sample(1)['Y'])[0]
+
+        n += 1
+        m = ((n-1)*m + y)/n
+
+        # listY.append(y)
+    return m
+
+
 
 def RunGenData():
-    # Load dataset
+    chosen_variables = ['SEX', 'AGE', 'RCONSC',
+                        'RXASP', 'EXPDD'
+                        ]
+    discrete_variables = ['SEX', 'RCONSC', 'RXASP']
+    continuous_variables = ['AGE', 'EXPDD']
+    necessary_set = ['RXASP', 'AGE', 'SEX', 'RCONSC']
+
     IST = pd.read_csv('IST.csv')
-    IST = ReduceIST(IST)
-    IST = IndexifyDisc(IST)
-    IST = ContToDisc(IST)
+    IST = ReduceIST(IST, chosen_variables)
+    IST_orig = copy.copy(IST)
+    IST = IndexifyDisc(IST, discrete_variables)
+    IST['SEX'] = 1 - IST['SEX']
+    IST['RCONSC'] = 1 * (IST['RCONSC'] == 0) + 0 * (IST['RCONSC'] == 2) + 2 * (IST['RCONSC'] == 1)
+
+    IST = ContToDisc(IST, continuous_variables)
+    EXP = GenAddY(IST, necessary_set)
+
 
     # Define policies
     low_prob = 0.005
     high_prob = 0.995
-    policy_list = PolicyGen(low_prob, high_prob)
+    listPolicy = PolicyGen(low_prob, high_prob)
+    listY = []
 
-    listEXP = GenEXPPl(IST, policy_list)
-    EXP1, EXP2 = listEXP
-    # print(np.mean(EXP_pl1['Y']), ExpectedOutcomePl(EXP_pl1,pl1))
-    # print(np.mean(EXP_pl2['Y']), ExpectedOutcomePl(EXP_pl2,pl2))
+    for pl in listPolicy:
+        y_pl = GenEXPY(EXP,pl)
+        listY.append(y_pl)
 
-    OBS = GenOBS(IST)
+    OBS = GenOBS(EXP)
 
-    EXP1 = HideCovarOBS(EXP1)
-    EXP2 = HideCovarOBS(EXP2)
-    OBS = HideCovarOBS(OBS)
-    listEXP = [EXP1,EXP2]
+    # EXP1 = HideCovarOBS(EXP1)
+    # EXP2 = HideCovarOBS(EXP2)
+    # OBS = HideCovarOBS(OBS)
+    # listEXP = [EXP1,EXP2]
 
-    return [listEXP, OBS, IST]
+    return [EXP,OBS]
 
 def QualityCheck(listEXP, OBS, policy_list):
     LB,U,HB = LB_U_HB(listEXP,OBS,policy_list)
@@ -270,6 +306,9 @@ def QualityCheck(listEXP, OBS, policy_list):
     print(LB2, U2, HB2)
     print('CASE 2',TF_case2)
     return [LB,U,HB]
+
+if __name__ == "__main__":
+    EXP,OBS = RunGenData()
 
 
 #
