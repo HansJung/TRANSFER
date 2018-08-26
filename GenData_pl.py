@@ -327,11 +327,13 @@ if __name__ == "__main__":
 
     listBdd = []
     listHB = []
+    listLB = []
 
     for pl in listPolicy:
         LB,HB = BoundsPl(OBS,listPz,pl,X='RXASP',covZ=['SEX','RCONSC'])
         listBdd.append([LB,HB])
         listHB.append(HB)
+        listLB.append(LB)
 
     ''' Check Case 2 '''
     # for plidx in range(len(listPolicy)):
