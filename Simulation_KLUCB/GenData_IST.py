@@ -136,15 +136,15 @@ def GenOBS(EXP,params):
 
         # MAKE THIS CODE MORE INTERPRETABLE
         if elem_treat == 0:
-            if healthy(elem_treat,elem_age,elem_sex,elem_consc,params) > 0.6:
-                prob = 0.99
-            else:
+            if healthy(elem_treat,elem_age,elem_sex,elem_consc,params) < 0.4:
                 prob = 0.01
+            else:
+                prob = 0.5
         else:
-            if healthy(elem_treat, elem_age, elem_sex, elem_consc, params) > 0.4:
-                prob = 0.01
+            if healthy(elem_treat, elem_age, elem_sex, elem_consc, params) < 0.4:
+                prob = 0.5
             else:
-                prob = 0.99
+                prob = 0.01
 
         # Computing the selection probability of patients idx
         # selection_prob = np.dot([weight_sick, weight_treatment],[prob, 1-elem_treat])

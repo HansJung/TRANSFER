@@ -165,7 +165,7 @@ TF_SaveResult = False
 TF_plot = True
 
 numRound = 2000
-numSim = 10
+numSim = 100
 
 if TF_sim == True:
     ''' Externally provided simulation instances '''
@@ -187,9 +187,9 @@ else:
     # listnOBS = [100,500]
     # listnOBS = [50000,50000]
     # listnOBS = [5905000,79000]
-    print(GenData_IST.QualityCheck(EXP,OBS,'RXASP',TF_emp=False))
-    print('EXP', GenData_IST.ComputeEffect(EXP,'RXASP','Y'))
-    print('OBS',GenData_IST.ComputeEffect(OBS,'RXASP','Y'))
+    # print(GenData_IST.QualityCheck(EXP,OBS,'RXASP',TF_emp=False))
+    # print('EXP', GenData_IST.ComputeEffect(EXP,'RXASP','Y'))
+    # print('OBS',GenData_IST.ComputeEffect(OBS,'RXASP','Y'))
 
     LB,HB = GenData_IST.ComputeBound(OBS,'RXASP')
     listArm = [0,1]
