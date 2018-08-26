@@ -175,7 +175,7 @@ def GenOBS(EXP, seed_obs = 1):
 #     OBS = pd.DataFrame(sample_list)
 #     return OBS
 
-def HideCovarDF(DF):
+def HideCovarDF(DF,selected_covariates):
     selected_covariates = ['AGE', 'SEX', 'RXASP', 'Y']
 
     ## Resulting dataset

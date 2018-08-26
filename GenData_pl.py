@@ -4,12 +4,10 @@ import copy
 from scipy.stats import ttest_ind
 from sklearn import preprocessing
 
-def HideCovarOBS(df):
-    selected_covariates = ['AGE', 'SEX', 'RXASP', 'Y']
-
+def HideCovarDF(DF,selected_covariates):
     ## Resulting dataset
-    df = df[selected_covariates]
-    return df
+    DF = DF[selected_covariates]
+    return DF
 
 def IST_LabelEncoder(IST, ColName):
     le = preprocessing.LabelEncoder()
@@ -124,7 +122,6 @@ def GenOBS(EXP, seed_obs = 1):
         elem_RCONSC = elem['RCONSC']
 
         u = int(6*elem_age + 3*elem_sex + elem_RCONSC + 1)
-        print(u)
         x = np.random.binomial(1,pxu[u-1])
         if x == elem_treat:
             listSample.append(elem)
@@ -163,50 +160,51 @@ def GenOBSPl(EXP,sample_N, seed_num):
     np.random.seed(seed_num)
     return EXP.sample(sample_N)
 
-def BoundsPl(OBS,pl):
-    X = 'RXASP'
+def BoundsPl(OBS,listPz, pl,X,covZ):
     sum_prob_lb = 0
-    for age in [0, 1]:
-        for sex in [0, 1]:
-            probs = pl(age, sex)
+    zidx = 0
+    for z0 in [0,1]:
+        for z1 in [0,1,2]:
+            pz = listPz[zidx]
+            zidx += 1
             for x in [0,1]:
-                P_xz = len(OBS[(OBS['AGE'] == age) & (OBS['SEX'] == sex) & (OBS[X]==x)]) / len(OBS)
-                pi_xz = probs[x]
-                EY_xz = np.mean(OBS[(OBS['AGE'] == age) & (OBS['SEX'] == sex) & (OBS[X]==x)]['Y'])
-                sum_prob_lb += EY_xz * pi_xz * P_xz
+                pi_xz = pl(z0, z1)[x]
+                EY_xz = np.mean(OBS[(OBS[covZ[0]] == z0) & (OBS[covZ[1]]==z1) & (OBS[X] == x) ]['Y'])
+                if pd.isnull(EY_xz):
+                    EY_xz = 0
+                # print(EY_xz, z0,z1,x)
+                sum_prob_lb += EY_xz * pi_xz * pz
 
     sum_prob_ub = 0
-    LB = copy.copy(sum_prob_lb)
-    for age in [0, 1]:
-        for sex in [0, 1]:
-            probs = pl(age, sex)
+    LB = copy.copy(max(sum_prob_lb,0))
+    zidx = 0
+    for z0 in [0,1]:
+        for z1 in [0,1,2]:
+            pz = listPz[zidx]
+            zidx += 1
             for x in [0,1]:
-                P_xz = len(OBS[(OBS['AGE'] == age) & (OBS['SEX'] == sex) & (OBS[X] == x)]) / len(OBS)
-                non_pi_xz = probs[1-x]
-                sum_prob_ub += P_xz * non_pi_xz
+                pxz = len(OBS[(OBS[covZ[0]] == z0) & (OBS[covZ[1]]==z1) & (OBS[X] == x) ])/len(OBS)
+                if pd.isnull(pxz):
+                    pxz= 0
+                pi_nonx_z = pl(z0, z1)[1-x]
+                sum_prob_ub += pxz * pi_nonx_z
     UB = LB + sum_prob_ub
+    UB = min(UB,1)
     return [LB,UB]
 
-def CheckCase2(HB,U):
-    hx0, hx1 = HB
-    Ux0, Ux1 = U
 
-    if Ux0 < Ux1:
-        if hx0 < Ux1:
-            return True
-        else:
-            return False
+def CheckCase2(h_subopt, u_opt):
+    if h_subopt < u_opt:
+        return True
     else:
-        if hx1 < Ux0:
-            return True
-        else:
-            return False
+        return False
 
 def PolicyGen(low_prob=0.005, high_prob=0.995):
-    pl1 = lambda age, sex: [low_prob, high_prob] if ((age == 0) and (sex == 0)) else [high_prob, low_prob]
-    pl2 = lambda age, sex: [low_prob, high_prob] if ((age == 0) and (sex == 1)) else [high_prob, low_prob]
-    pl3 = lambda age, sex: [low_prob, high_prob] if ((age == 1) and (sex == 0)) else [high_prob, low_prob]
-    pl4 = lambda age, sex: [low_prob, high_prob] if ((age == 1) and (sex == 1)) else [high_prob, low_prob]
+    pl1 = lambda z0, z1: [low_prob, high_prob] if ((z0 == 0) and (z1 == 0)) else [high_prob, low_prob]
+    pl2 = lambda z0, z1: [low_prob, high_prob] if ((z0 == 0) and (z1 != 0)) else [high_prob, low_prob]
+    pl3 = lambda z0, z1: [low_prob, high_prob] if ((z0 != 0) and (z1 == 0)) else [high_prob, low_prob]
+    pl4 = lambda z0, z1: [low_prob, high_prob] if ((z0 != 0) and (z1 != 0)) else [high_prob, low_prob]
+
     policy_list = [pl1, pl2, pl3, pl4]
     return policy_list
 
@@ -232,7 +230,7 @@ def GenAddY(df,necessary_set):
     df['Y'] = 1 / (1 + np.exp(-df['Y']))
     return df
 
-def GenEXPY(EXP,pl):
+def GenEXPY(EXP,pl,covariate_Z):
     np.random.seed(1)
     listY = []
     X = 'RXASP'
@@ -244,10 +242,10 @@ def GenEXPY(EXP,pl):
     for idx in range(num_iter):
         # if idx % 100 == 0:
         #     print(idx)
-        z = list(EXP[['AGE','SEX']].iloc[idx])
-        age,sex = z
+        z = list(EXP[covariate_Z].iloc[idx])
+        z0,z1= z
         x = drawArmFromPolicy(pl,z)
-        y = list(EXP[(EXP['AGE']==age) & (EXP['SEX']==sex) & (EXP[X]==x)].sample(1)['Y'])[0]
+        y = list(EXP[(EXP[covariate_Z[0]]==z0) & (EXP[covariate_Z[1]]==z1) & (EXP[X]==x)].sample(1)['Y'])[0]
 
         n += 1
         m = ((n-1)*m + y)/n
@@ -255,15 +253,24 @@ def GenEXPY(EXP,pl):
         # listY.append(y)
     return m
 
+def ComputePz(EXP):
+    N = len(EXP)
+    listPz = []
+    for sex in [0,1]:
+        for r in [0,1,2]:
+            pz = len(EXP[(EXP['SEX']==sex) & (EXP['RCONSC']==r)])/N
+            listPz.append(pz)
+    return listPz
 
 
 def RunGenData():
     chosen_variables = ['SEX', 'AGE', 'RCONSC',
-                        'RXASP', 'EXPDD'
+                        'RXASP',
                         ]
     discrete_variables = ['SEX', 'RCONSC', 'RXASP']
-    continuous_variables = ['AGE', 'EXPDD']
+    continuous_variables = ['AGE']
     necessary_set = ['RXASP', 'AGE', 'SEX', 'RCONSC']
+    coviarateZ = ['SEX','RCONSC']
 
     IST = pd.read_csv('IST.csv')
     IST = ReduceIST(IST, chosen_variables)
@@ -283,7 +290,7 @@ def RunGenData():
     listY = []
 
     for pl in listPolicy:
-        y_pl = GenEXPY(EXP,pl)
+        y_pl = GenEXPY(EXP,pl,coviarateZ)
         listY.append(y_pl)
 
     OBS = GenOBS(EXP)
@@ -293,7 +300,7 @@ def RunGenData():
     # OBS = HideCovarOBS(OBS)
     # listEXP = [EXP1,EXP2]
 
-    return [EXP,OBS]
+    return [EXP,OBS,listY,listPolicy]
 
 def QualityCheck(listEXP, OBS, policy_list):
     LB,U,HB = LB_U_HB(listEXP,OBS,policy_list)
@@ -308,7 +315,33 @@ def QualityCheck(listEXP, OBS, policy_list):
     return [LB,U,HB]
 
 if __name__ == "__main__":
-    EXP,OBS = RunGenData()
+    EXP, OBS, listU, listPolicy = RunGenData()
+    listPz = ComputePz(EXP)
+    optpl = np.argmax(listU)
+    uopt = listU[optpl]
+
+    obs_covar = ['SEX','RCONSC','RXASP','Y']
+    EXP_orig = copy.copy(EXP)
+    EXP = HideCovarDF(EXP,obs_covar)
+    OBS = HideCovarDF(OBS,obs_covar)
+
+    listBdd = []
+    listHB = []
+
+    for pl in listPolicy:
+        LB,HB = BoundsPl(OBS,listPz,pl,X='RXASP',covZ=['SEX','RCONSC'])
+        listBdd.append([LB,HB])
+        listHB.append(HB)
+
+    ''' Check Case 2 '''
+    # for plidx in range(len(listPolicy)):
+    #     print(CheckCase2(listHB[plidx],uopt))
+
+    # for pldx in range(len(listPolicy)):
+    #     print(listBdd[pldx], listU[pldx])
+
+
+
 
 
 #
