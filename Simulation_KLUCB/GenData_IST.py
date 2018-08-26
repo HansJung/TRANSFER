@@ -45,7 +45,7 @@ def ContNormalization(df,colname):
     df_col = (df_col - min(df_col))/(max(df_col) - min(df_col))
     return df_col
 
-def ComputeEffect(df,outcome):
+def ComputeEffect(df,X,outcome):
     return [np.mean(df[(df['RXASP'] == 0)][outcome]), np.mean(df[(df['RXASP'] == 1)][outcome])]
 
 def diffEffect(df,outcome):
@@ -53,65 +53,72 @@ def diffEffect(df,outcome):
     return(np.abs(Yx0-Yx1))
 
 
-def ReduceIST(IST):
+def ReduceIST(IST, chosen_variables):
     # Exclude patients not having AF
-    IST = IST.loc[pd.isnull(IST['RATRIAL']) == False]
+    # IST = IST.loc[pd.isnull(IST['RATRIAL']) == False]
     # Exclude patients having no recovery information
     IST = IST.loc[(IST['FRECOVER']) != 'U']
-    # Exclude patients being dead due to other reasons (irrevant stroke)
-    # ## Patients dead from other causes are exlucded.
-    IST = IST.loc[(IST['DEAD7'] == 0) & (IST['DEAD8'] == 0)]
-    chosen_variables = ['SEX', 'AGE',
-                        'RSLEEP', 'RATRIAL', 'RCONSC', 'RDELAY', 'RVISINF', 'RSBP',
-                        'RXASP',
-                        'FRECOVER',
-                        'EXPDD'
-                        ]
-    # Include only chosen variables (covariaets)
+    IST = IST.loc[(IST['FDEAD'])!= 'U']
     IST = IST[chosen_variables]
-    # Delete row with missing variables.
-    IST = IST.dropna()
-    IST = IndexifyDisc(IST)
-
-    # Generate continuous Y
-    ## FRECOVER {0,1} (1 if recovered // 0 if dependent or dead)
-    ## IST['EXPDD'] is a predicted probabililty of being dead+dependent.
-    ## i.e., 1-IST['EXPDD'] is a prob of recovery.
-    ### outcome is higher if actually recovered despite low recovery prob.
-    outcome = IST['FRECOVER'] - (1 - IST['EXPDD'])
-    outcome = (outcome + 1) / 2 # Normalizing to [0,1]
-    outcome = pd.DataFrame({'Y': outcome})
-    IST = pd.concat([IST, outcome], axis=1)
     return IST
 
-def IndexifyDisc(IST):
-    discrete_variables = ['SEX', 'RSLEEP', 'RATRIAL', 'RCONSC',
-                          'RVISINF', 'RXASP',
-                          'FRECOVER'
-                          ]
+    # Exclude patients being dead due to other reasons (irrevant stroke)
+    # ## Patients dead from other causes are exlucded.
+    # IST = IST.loc[(IST['DEAD7'] == 0) & (IST['DEAD8'] == 0)]
+    # chosen_variables = ['SEX', 'AGE',
+    #                     'RSLEEP', 'RATRIAL', 'RCONSC', 'RDELAY', 'RVISINF', 'RSBP',
+    #                     'RXASP','RXHEP',
+    #                     'FRECOVER','FDEAD','DRSISC','DPE','H14','DSIDE','DALIVE',
+    #                     'EXPDD','DDEAD'
+    #                     ]
+    # # Include only chosen variables (covariaets)
+    #
+    # # Delete row with missing variables.
+    # IST = IST.dropna()
+    # IST_orig = copy.copy(IST)
+    # IST = IndexifyDisc(IST)
+    #
+    # # Generate continuous Y
+    # # FRECOVER {0,1} (1 if recovered // 0 if dependent or dead)
+    # # IST['EXPDD'] is a predicted probabililty of being dead+dependent.
+    # # i.e., 1-IST['EXPDD'] is a prob of recovery.
+    # ## outcome is higher if actually recovered despite low recovery prob.
+    # outcome = IST['FRECOVER'] - (1 - IST['EXPDD'])
+    # outcome = (outcome + 1) / 2 # Normalizing to [0,1]
+    # outcome = pd.DataFrame({'Y': outcome})
+    # IST = pd.concat([IST, outcome], axis=1)
+    # IST_orig = pd.concat([IST_orig, outcome], axis=1)
+    # return IST_orig
+
+def IndexifyDisc(IST, discrete_variables):
+    # discrete_variables = ['SEX', 'RSLEEP', 'RATRIAL', 'RCONSC',
+    #                       'RVISINF', 'RXASP','RXHEP',
+    #                       'FRECOVER','FDEAD','DRSISC','DPE','DSIDE','DALIVE','DDEAD'
+    #                       ]
 
     for disc_val in discrete_variables:
         IST = IST_LabelEncoder(IST, disc_val)
     return IST
 
-def ContToDisc(IST):
+def ContToDisc(IST,continuous_variables):
     # Discretize the continuous variable
-    continuous_variable = ['RSBP', 'AGE', 'RDELAY']  # list(set(chosen_variables) - set(discrete_variables))
-    IST['AGE'] = BinaryCategorize(IST['AGE'])
-    IST['RSBP'] = ThreeCategorize(IST['RSBP'])
-    IST['RDELAY'] = ThreeCategorize(IST['RDELAY'])
+    # continuous_variable = ['RSBP', 'AGE', 'RDELAY']  # list(set(chosen_variables) - set(discrete_variables))
+    for cont_val in continuous_variables:
+        IST[cont_val] = BinaryCategorize(IST[cont_val])
     return IST
 
 def SigTest(df,X,Y):
     result = stats.ttest_ind(df[df[X] == 0][Y], df[df[X] == 1][Y], equal_var=False)
     return result.pvalue
 
-def SeedFinding(IST, sample_N, alpha=0.01):
+def SeedFinding(IST, sample_N, alpha=0.001):
     # Find the random seed number
     prev_sig = 2 ** 32 - 1
     iter_idx = 0
     possible_case = 2 ** 32 - 1
     remember_seed = 0
+
+    X = 'RXHEP'
 
     while 1:
         iter_idx += 1
@@ -121,7 +128,7 @@ def SeedFinding(IST, sample_N, alpha=0.01):
         # Randomly sample from randomly chosen seed
         Sample = IST.sample(n=sample_N)
         # Test the significance of samples
-        sig_sample = SigTest(Sample,'RXASP','Y')
+        sig_sample = SigTest(Sample,X,'Y')
         # Store the minimum significance and the seed number
         if sig_sample < prev_sig:
             prev_sig = sig_sample
@@ -147,77 +154,30 @@ def GenEXP(IST,sample_N, remember_seed = 3141693719):
     return EXP
 
 def GenOBS(EXP, seed_obs = 1):
-    # Generate OBS from EXP
-    #
-    # def CheckHelthy(Age,Sex,RATRIAL,RVISINF,EXPDD):
-    #     # SEX = 0 much more healthy ([0.44259246803779878, 0.39391051794638798])
-    #     # Age = 1 much more healthy ([0.37801539494470776, 0.45799387125220459])
-    #     # RATRIAL = 1 much more healthy
-    #     # RVISINF = 0 healthy
-    #     healthy_sex = (1-Sex)
-    #     healthy_age = Age
-    #     healthy_af = RATRIAL
-    #     healthy_vis = (1-RVISINF)
-    #     healthy_EXPD = 6*(EXPDD < 0.7)*1
-    #     listHealth = [healthy_sex,healthy_age,healthy_af,healthy_vis,healthy_EXPD]
-    #     return sum(listHealth)
-    #
-    # np.random.seed(seed_obs)
-    #
-    # weight_sick = 0.001
-    # weight_treatment = 0.999
-    # sample_list = []
-    # for idx in range(len(EXP)):
-    #     elem = EXP.iloc[idx]
-    #     elem_AGE = elem['AGE']
-    #     elem_SEX = elem['SEX']
-    #     elem_RATRIAL = elem['RATRIAL']
-    #     elem_VIS = elem['RVISINF']
-    #     elem_EXPDD = elem['EXPDD']
-    #
-    #     elem_point = CheckHelthy(elem_AGE,elem_SEX,elem_RATRIAL,elem_VIS,elem_EXPDD)
-    #     elem_treat = elem['RXASP']
-    #
-    #     if elem_treat == 0: # Non treated
-    #         if elem_point < 4: # Not healthy
-    #             probSelect = 0.9
-    #         else: # Healthy
-    #             probSelect = 0.1
-    #     else: # Treated
-    #         if elem_point < 4: # not healthy
-    #             probSelect = 0.1
-    #         else:
-    #             probSelect = 0.9
-    #     probSelect = np.dot([weight_sick, weight_treatment], [probSelect, 1-elem_treat])
-    #     if np.random.binomial(1, probSelect) == 0:
-    #         continue
-    #     else:
-    #         sample_list.append(elem)
-    # OBS = pd.DataFrame(sample_list)
-    # return OBS
-
-    weight_sick = 0.01
-    weight_treatment = 0.99
+    X = 'X'
+    weight_sick = 0.1
+    weight_treatment = 0.9
     sample_list = []
-    for idx in range(len(EXP)):
+    for idx in range(len(EXP)-1):
         elem = EXP.iloc[idx]
         elem_EXPD = elem['EXPDD']
-        elem_treat = elem['RXASP']
+        elem_treat = elem[X]
 
         # MAKE THIS CODE MORE INTERPRETABLE
         if elem_treat == 0:
             if elem_EXPD < 0.7: # Healthy
-                prob = 0.2
+                prob = 0.1
             else:
                 prob = 0.9
         else:
             if elem_EXPD < 0.7:
                 prob = 0.9
             else:
-                prob = 0.2
+                prob = 0.1
 
         # Computing the selection probability of patients idx
         selection_prob = np.dot([weight_sick, weight_treatment],[prob, 1-elem_treat])
+        print(idx, prob, selection_prob)
 
         if np.random.binomial(1, selection_prob) == 0:
             continue
@@ -312,19 +272,93 @@ def ChangeRXASPtoX(df,idx_X=3):
     df.columns = df_colnames
     return df
 
+
+
+def GenAddY(df,necessary_set = ['RXASP','AGE','SEX','RCONC'],params = [0.6, -0.2, 0.2, 0.2]):
+    df['Y'] = df[necessary_set[0]] * params[0]
+    for idx in range(1,len(necessary_set)):
+        df['Y'] = df['Y'] + df[necessary_set[idx]]*params[idx]
+    df['Y'] = df['Y'] + np.random.normal(loc=0,scale=0.1,size=len(df))
+    return df
+
+
+
+
+
+
+
+
 def RunGenData(sample_N=12000, remember_seed = 1444260861):
-    sample_N = 14000
-    remember_seed = 1444260861
+    sample_N = 12000
+    # remember_seed = 1444260861
+    remember_seed = 2384686002
+
+    # chosen_variables = ['SEX', 'AGE',
+    #                     'RSLEEP', 'RATRIAL', 'RCONSC', 'RDELAY', 'RVISINF', 'RSBP',
+    #                     'RXASP','RXHEP',
+    #                     'FRECOVER','FDEAD','DRSISC','DPE','H14','DSIDE','DALIVE',
+    #                     'EXPDD','DDEAD'
+    #                     ]
+    chosen_variables = ['SEX', 'AGE', 'RCONSC',
+                        'RXASP', 'EXPDD'
+                        ]
+    discrete_variables = ['SEX','RCONSC','RXASP']
+    continuous_variables = ['AGE','EXPDD']
+    necessary_set = ['RXASP','AGE','SEX','RCONSC']
+    params = [0.6,-0.2,0.2,0.2]
+
     # Data load
     ## Preprocessing
     IST = pd.read_csv('IST.csv')
+    IST = ReduceIST(IST,chosen_variables)
     IST_orig = copy.copy(IST)
-    IST = ReduceIST(IST)
-    IST = IndexifyDisc(IST)
-    IST = ContToDisc(IST)
+    IST = IndexifyDisc(IST,discrete_variables)
+    IST['SEX'] = 1-IST['SEX']
+    IST['RCONSC'] = 1*(IST['RCONSC'] == 0) + 0*(IST['RCONSC'] == 2)  + 2*(IST['RCONSC']==1)
+
+    IST = ContToDisc(IST,continuous_variables)
+    IST = GenAddY(IST,necessary_set,params)
+
+    # listOutcome = []
+    # for idx in range(len(IST)):
+    #     if idx % 100 == 0:
+    #         print(idx)
+    #     elem = IST.iloc[idx]
+    #     if elem['RXASP'] == 0:
+    #         outcome = elem['Y']*0.2
+    #         listOutcome.append(outcome)
+    #     else:
+    #         outcome = elem['Y'] * 0.8
+    #         listOutcome.append(outcome)
+    # Z = pd.DataFrame(index=IST.index,data={'Z':listOutcome})
+    # IST = pd.concat([IST,Z],axis=1)
+
+    # Y = GenY(IST,IST_orig)
+    # Y = np.array(Y)
+    # Y = (Y+3)/7
+    # Y = pd.DataFrame(index=IST.index,data={'Y':Y})
+    # IST = pd.concat([IST,Y],axis=1)
+    # EXP = GenEXP(IST, sample_N, remember_seed)  # SO FAR GODO
+    #
+    #
+    # # IST_X = list()
+    # # IST_sample = []
+    # # for idx in range(len(IST)):
+    # #     elem_IST = IST.iloc[idx]
+    # #     if (IST['RXASP'].iloc[idx] == 1) and (IST['RXHEP'].iloc[idx]==1):
+    # #         IST_X.append(1)
+    # #         IST_sample.append(elem_IST)
+    # #     elif (IST['RXASP'].iloc[idx] == 1) and (IST['RXHEP'].iloc[idx] == 2):
+    # #         IST_X.append(0)
+    # #         IST_sample.append(elem_IST)
+    #
+    # IST_sample = pd.DataFrame(IST_sample)
+    # IST_X = pd.DataFrame({'X':IST_X})
+    # IST = pd.concat([IST_sample,IST_X],axis=1)
+    # EXP = copy.copy(IST)
 
     # remember_seed = SeedFinding(IST,sample_N=12000, alpha=0.01)
-    EXP = GenEXP(IST,sample_N,remember_seed) # SO FAR GODO
+
     # tempOBS = GenOBS(EXP)
     # print(ComputeEffect(EXP,'Y'))
     # print(ComputeEffect(tempOBS, 'Y'))
@@ -382,6 +416,39 @@ if __name__ == "__main__":
     #                 EXP['RXASP'] == x)]['Y'])
     #                 print('E[Yx|u]', expected, 'when X=', x, 'Z=', '(', age, sex, biexpd, ')')
 
+
+    listSample = []
+    IST_sample = IST[['RCONSC', 'AGE', 'SEX', 'RXASP', 'EXPDD']]
+    # IST_sample2 = copy.copy(IST_sample)
+    for idx in range(len(IST_sample)):
+        if idx % 50 == 0:
+            print(idx)
+        elem = IST_sample.iloc[idx]
+        if elem['SEX'] == 'F':
+            elem['SEX'] = 1
+        else:
+            elem['SEX'] = 0
+
+        if elem['RXASP'] == 'Y':
+            elem['RXASP'] = 1
+        elif elem['RXASP'] == 'N':
+            elem['RXASP'] = 0
+        else:
+            continue
+
+        if elem['RCONSC'] == 'F':
+            elem['RCONSC'] = 2
+        elif elem['RCONSC'] == 'D':
+            elem['RCONSC'] = 1
+        elif elem['RCONSC'] == 'U':
+            elem['RCONSC'] = 0
+        else:
+            continue
+        listSample.append(elem)
+    ISTSample = pd.DataFrame(listSample)
+    import scipy.io
+
+    scipy.io.savemat('ISTSample.mat', {'ISTSample': ISTSample.to_dict("list")})
 
 
 
