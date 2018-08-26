@@ -165,7 +165,7 @@ TF_SaveResult = False
 TF_plot = True
 
 numRound = 2000
-numSim = 100
+numSim = 10
 
 if TF_sim == True:
     ''' Externally provided simulation instances '''
