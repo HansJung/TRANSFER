@@ -121,7 +121,7 @@ def GenEXP(IST,sample_N, remember_seed = 3141693719):
     return EXP
 
 def GenOBS(EXP, seed_obs = 1):
-    pxu = [0, 0, 0, 0, 0, 0, 1, 0.2, 0.1, 0, 0, 0]
+    pxu = [0, 0, 0, 0, 0, 0, 1, 0.2, 0.1, 0.1, 0, 0]
     listSample = []
     for idx in range(len(EXP)):
         elem = EXP.iloc[idx]
@@ -271,7 +271,6 @@ def RunGenData():
     discrete_variables = ['SEX', 'RCONSC', 'RXASP']
     continuous_variables = ['AGE', 'EXPDD']
     necessary_set = ['RXASP', 'AGE', 'SEX', 'RCONSC']
-    params = [0.4, -0.2, 0.2, 0.2]
 
     # Data load
     ## Preprocessing

@@ -3,6 +3,7 @@ import pandas as pd
 import copy
 from scipy.stats import ttest_ind
 from sklearn import preprocessing
+import pickle
 
 def HideCovarDF(DF,selected_covariates):
     ## Resulting dataset
@@ -112,7 +113,7 @@ def ComputeXYEffect(df,X,Y):
     return [np.mean(df[df[X]==0][Y]),np.mean(df[df[X]==1][Y])]
 
 def GenOBS(EXP, seed_obs = 1):
-    pxu = [0, 0, 0, 0, 0, 0, 1, 0.2, 0.1, 0, 0, 0]
+    pxu = [0, 0, 0, 0, 0, 0, 1, 0.2, 0.1, 0.1, 0, 0]
     listSample = []
     for idx in range(len(EXP)):
         elem = EXP.iloc[idx]
@@ -160,37 +161,87 @@ def GenOBSPl(EXP,sample_N, seed_num):
     np.random.seed(seed_num)
     return EXP.sample(sample_N)
 
-def BoundsPl(OBS,listPz, pl,X,covZ):
+def BoundsPl(OBS, OBS_Z, OBS_X,pl, zName, xName):
+    zDomain = np.unique(OBS_Z)
+    xDomain = np.unique(OBS_X)
+    N = len(OBS)
+
     sum_prob_lb = 0
     zidx = 0
-    for z0 in [0,1]:
-        for z1 in [0,1,2]:
-            pz = listPz[zidx]
-            zidx += 1
-            for x in [0,1]:
-                pi_xz = pl(z0, z1)[x]
-                EY_xz = np.mean(OBS[(OBS[covZ[0]] == z0) & (OBS[covZ[1]]==z1) & (OBS[X] == x) ]['Y'])
-                if pd.isnull(EY_xz):
-                    EY_xz = 0
-                # print(EY_xz, z0,z1,x)
-                sum_prob_lb += EY_xz * pi_xz * pz
+    for z in zDomain:
+        z = int(z)
+        pz = listPz[zidx]
+        zidx += 1
+        for x in xDomain:
+            x = int(x)
+            pl_xz = FunEval(pl,z)
+            print(pl_xz, x)
+            pl_xz = pl_xz[x]
+            EY_xz = np.mean(OBS[(OBS[zName]==z) & (OBS[xName]==x)]['Y'])
+            if pd.isnull(EY_xz):
+                EY_xz = 0
+            sum_prob_lb += EY_xz * pl_xz * pz
 
     sum_prob_ub = 0
-    LB = copy.copy(max(sum_prob_lb,0))
+    LB = copy.copy(max(sum_prob_lb, 0))
+
     zidx = 0
-    for z0 in [0,1]:
-        for z1 in [0,1,2]:
-            pz = listPz[zidx]
-            zidx += 1
-            for x in [0,1]:
-                pxz = len(OBS[(OBS[covZ[0]] == z0) & (OBS[covZ[1]]==z1) & (OBS[X] == x) ])/len(OBS)
-                if pd.isnull(pxz):
-                    pxz= 0
-                pi_nonx_z = pl(z0, z1)[1-x]
-                sum_prob_ub += pxz * pi_nonx_z
-    UB = LB + sum_prob_ub
-    UB = min(UB,1)
-    return [LB,UB]
+    for z in zDomain:
+        pz = listPz[zidx]
+        zidx += 1
+        for x in xDomain:
+            x = int(x)
+            pxz = len(OBS[(OBS[zName]==z) & (OBS[xName]==x)]) / N
+            if pd.isnull(pxz):
+                pxz = 0
+            pi_nonx_z = FunEval(pl,z)
+            pi_nonx_z = pi_nonx_z[1-x]
+            sum_prob_ub += pxz * pi_nonx_z
+    HB = LB + sum_prob_ub
+    HB = min(HB, 1)
+    return [LB, HB]
+
+
+def EmpBoundsPl(OBS,zName,listPolicy,delta,N):
+    delta = delta / len(listPolicy)
+    fn = np.sqrt(((2 * N) ** (-1)) * (np.log(4) - np.log(delta)))
+
+    Ys = list(OBS['Y'])
+    Xs = list(OBS['RXASP'])
+    Zs = list(OBS[zName])
+
+    listLB = []
+    listHB = []
+
+    for plidx in range(len(listPolicy)):
+        sumval = 0
+        pl = listPolicy[plidx]
+        for idx in range(N):
+            y = Ys[idx]
+            x = int(Xs[idx])
+            z = Zs[idx]
+            pl_xz = FunEval(pl, z)
+            pl_xz = pl_xz[x]
+            sumval += (y*pl_xz)
+        LB_orig = sumval/N
+        LB = max(0,LB_orig - fn)
+
+        sumval = 0
+        for idx in range(N):
+            x = int(Xs[idx])
+            z = Zs[idx]
+            pl_xz = FunEval(pl, z)
+            pl_xz = pl_xz[1-x]
+            sumval += pl_xz
+        HB_orig = LB_orig + sumval/N
+        HB = HB_orig + fn
+        HB = min(HB,1)
+
+        listLB.append(LB)
+        listHB.append(HB)
+
+    return [listLB,listHB]
+
 
 
 def CheckCase2(h_subopt, u_opt):
@@ -199,13 +250,17 @@ def CheckCase2(h_subopt, u_opt):
     else:
         return False
 
-def PolicyGen(low_prob=0.005, high_prob=0.995):
-    pl1 = lambda z0, z1: [low_prob, high_prob] if ((z0 == 0) and (z1 == 0)) else [high_prob, low_prob]
-    pl2 = lambda z0, z1: [low_prob, high_prob] if ((z0 == 0) and (z1 != 0)) else [high_prob, low_prob]
-    pl3 = lambda z0, z1: [low_prob, high_prob] if ((z0 != 0) and (z1 == 0)) else [high_prob, low_prob]
-    pl4 = lambda z0, z1: [low_prob, high_prob] if ((z0 != 0) and (z1 != 0)) else [high_prob, low_prob]
 
-    policy_list = [pl1, pl2, pl3, pl4]
+
+def PolicyGen(low_prob, high_prob):
+    pl1 = lambda z0, z1: [low_prob, high_prob] if ((z0 == 0) and (z1 == 0)) else [high_prob, low_prob]
+    pl2 = lambda z0, z1: [low_prob, high_prob] if ((z0 == 0) and (z1 == 1)) else [high_prob, low_prob]
+    pl3 = lambda z0, z1: [low_prob, high_prob] if ((z0 == 0) and (z1 == 2)) else [high_prob, low_prob]
+    pl4 = lambda z0, z1: [low_prob, high_prob] if ((z0 == 1) and (z1 == 0)) else [high_prob, low_prob]
+    pl5 = lambda z0, z1: [low_prob, high_prob] if ((z0 == 1) and (z1 == 1)) else [high_prob, low_prob]
+    pl6 = lambda z0, z1: [low_prob, high_prob] if ((z0 == 1) and (z1 == 2)) else [high_prob, low_prob]
+
+    policy_list = [pl1, pl2, pl3, pl4, pl5, pl6]
     return policy_list
 
 def LB_U_HB(listEXP,OBS, policy_list):
@@ -230,38 +285,47 @@ def GenAddY(df,necessary_set):
     df['Y'] = 1 / (1 + np.exp(-df['Y']))
     return df
 
-def GenEXPY(EXP,pl,covariate_Z):
-    np.random.seed(1)
-    listY = []
-    X = 'RXASP'
-    m = 0
-    n = 0
+# def GenEXPY(EXP,pl,covariate_Z):
+#     np.random.seed(1)
+#     listY = []
+#     X = 'RXASP'
+#     m = 0
+#     n = 0
+#
+#     num_iter = 5000
+#
+#     for idx in range(num_iter):
+#         # if idx % 100 == 0:
+#         #     print(idx)
+#         z = list(EXP[covariate_Z].iloc[idx])
+#         z0,z1= z
+#         x = drawArmFromPolicy(pl,z)
+#         y = list(EXP[(EXP[covariate_Z[0]]==z0) & (EXP[covariate_Z[1]]==z1) & (EXP[X]==x)].sample(1)['Y'])[0]
+#
+#         n += 1
+#         m = ((n-1)*m + y)/n
+#
+#         # listY.append(y)
+#     return m
 
-    num_iter = 3000
-
-    for idx in range(num_iter):
-        # if idx % 100 == 0:
-        #     print(idx)
-        z = list(EXP[covariate_Z].iloc[idx])
-        z0,z1= z
-        x = drawArmFromPolicy(pl,z)
-        y = list(EXP[(EXP[covariate_Z[0]]==z0) & (EXP[covariate_Z[1]]==z1) & (EXP[X]==x)].sample(1)['Y'])[0]
-
-        n += 1
-        m = ((n-1)*m + y)/n
-
-        # listY.append(y)
-    return m
-
-def ComputePz(EXP):
+def ComputePz(EXP_Z, zName, EXP):
+    # Assume z 1D
+    zDomain = np.unique(EXP_Z)
     N = len(EXP)
     listPz = []
-    for sex in [0,1]:
-        for r in [0,1,2]:
-            pz = len(EXP[(EXP['SEX']==sex) & (EXP['RCONSC']==r)])/N
-            listPz.append(pz)
+    for z in zDomain:
+        pz = len(EXP[EXP[zName]==z])/N
+        listPz.append(pz)
     return listPz
 
+def RewardFun(x, s, r, a):
+    y = x + 0.5 * s + 0.2 * (r - 1) - x * a + np.random.normal(0,1)
+    y = 1 / (1 + np.exp(-y))
+    return y
+
+def FunEval(pl,z):
+    pl_1z = pl(z)
+    return [1-pl_1z, pl_1z]
 
 def RunGenData():
     chosen_variables = ['SEX', 'AGE', 'RCONSC',
@@ -279,28 +343,73 @@ def RunGenData():
     IST['SEX'] = 1 - IST['SEX']
     IST['RCONSC'] = 1 * (IST['RCONSC'] == 0) + 0 * (IST['RCONSC'] == 2) + 2 * (IST['RCONSC'] == 1)
 
-    IST = ContToDisc(IST, continuous_variables)
-    EXP = GenAddY(IST, necessary_set)
+    EXP = ContToDisc(IST, continuous_variables)
+    EXP = GenAddY(EXP,necessary_set)
+    ##### GEN Y
+    OBS = GenOBS(EXP)
+
+    EXP_SEX = list(EXP['SEX'])
+    EXP_AGE = list(EXP['AGE'])
+    EXP_RCONSC = list(EXP['RCONSC'])
+    EXP_RXASP = list(EXP['RXASP'])
+
+    OBS_SEX = list(OBS['SEX'])
+    OBS_AGE = list(OBS['AGE'])
+    OBS_RCONSC = list(OBS['RCONSC'])
+    OBS_RXASP = list(OBS['RXASP'])
 
 
     # Define policies
-    low_prob = 0.005
-    high_prob = 0.995
-    listPolicy = PolicyGen(low_prob, high_prob)
-    listY = []
+    pl1 = lambda z: 0.01 if z == 0 else 0.02
+    pl2 = lambda z: 0.05 if z == 0 else 0.1
+    pl3 = lambda z: 0.97 if z == 0 else 0.99
+    pl4 = lambda z: 0.1 if z == 0 else 0.05
+    listPolicy = [pl1, pl2, pl3, pl4]
 
+
+    # low_prob = 0.01
+    # high_prob = 0.99
+    # listPolicy = PolicyGen(low_prob, high_prob)
+
+    listU = []
     for pl in listPolicy:
-        y_pl = GenEXPY(EXP,pl,coviarateZ)
-        listY.append(y_pl)
+        m = 0
+        n = 0
+        for s,r,a in zip(EXP_SEX, EXP_RCONSC, EXP_AGE):
+            x = np.random.binomial(1,FunEval(pl,s)[1])
+            y = RewardFun(x,s,r,a)
+            n += 1
+            m = ((n - 1) * m + y) / n
+        listU.append(m)
 
-    OBS = GenOBS(EXP)
+    listPz = ComputePz(OBS_SEX,'SEX',OBS)
+    listLB, listHB = EmpBoundsPl(OBS, 'SEX', listPolicy, 0.01, len(OBS))
+
+    pickle.dump(EXP, open('sim_instance/EXP.pkl','wb'))
+    pickle.dump(OBS, open('sim_instance/OBS.pkl', 'wb'))
+    # pickle.dump(listPolicy, open('sim_instance/listPolicy.pkl', 'wb'))
+    pickle.dump(listU, open('sim_instance/listU.pkl', 'wb'))
+    pickle.dump(listPz, open('sim_instance/listPz.pkl', 'wb'))
+    pickle.dump(listLB, open('sim_instance/listLB.pkl','wb'))
+    pickle.dump(listHB, open('sim_instance/listHB.pkl','wb'))
+
+    return(EXP,OBS,listPolicy,listU)
+
+
+
+
+
+
+
+
+
 
     # EXP1 = HideCovarOBS(EXP1)
     # EXP2 = HideCovarOBS(EXP2)
     # OBS = HideCovarOBS(OBS)
     # listEXP = [EXP1,EXP2]
 
-    return [EXP,OBS,listY,listPolicy]
+
 
 def QualityCheck(listEXP, OBS, policy_list):
     LB,U,HB = LB_U_HB(listEXP,OBS,policy_list)
@@ -321,6 +430,7 @@ if __name__ == "__main__":
     uopt = listU[optpl]
 
     obs_covar = ['SEX','RCONSC','RXASP','Y']
+    covZ = ['SEX','RCONSC']
     EXP_orig = copy.copy(EXP)
     EXP = HideCovarDF(EXP,obs_covar)
     OBS = HideCovarDF(OBS,obs_covar)
@@ -334,6 +444,15 @@ if __name__ == "__main__":
         listBdd.append([LB,HB])
         listHB.append(HB)
         listLB.append(LB)
+
+
+    delta = 0.01
+    listLBe, listHBe = EmpBoundsPl(OBS,covZ,listPolicy,delta,len(OBS))
+
+    pickle.dump(EXP, open('EXP.pkl','wb'))
+    pickle.dump(OBS, open('OBS.pkl', 'wb'))
+    pickle.dump(listU, open('listU_005095.pkl', 'wb'))
+    # pickle.dump(listPolicy, open('listPolicy0109.pkl', 'wb'))
 
     ''' Check Case 2 '''
     # for plidx in range(len(listPolicy)):
